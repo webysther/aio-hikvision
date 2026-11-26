@@ -22,6 +22,20 @@ All notable changes to aiohikvision. The format follows
 - **What the inputs of a door station read** (`DoorStationInfo.inputs`,
   `DoorStation.read_inputs`): a door contact, an exit button, or nothing, with the choices
   each input offers.
+- **How the event stream of a device behaves** (`AlarmFeed.behaviour`, a `StreamBehaviour`:
+  `live`, `quiet`, `quick_close`, `bare`, `no_stream`). The decision to connect again lives
+  in `Reconnects`, which judges each connection (`Session`) without I/O.
+
+### Fixed
+
+- The event stream of a door station that answers 200 with only an XML declaration and closes
+  is no longer reopened every 5 seconds: after 3 such answers in a row (`BARE_LIMIT`) the
+  stream is reported `Unsupported` (`NO_STREAM`) with one warning, and tried again every hour
+  (`UNSUPPORTED_RETRY`). A stream that closes right after connecting without sending anything
+  now backs off (5 s, 10 s, … up to 5 minutes) instead of retrying every 5 seconds. Reported
+  and fixed in Hikvision Bridge
+  ([#84](https://github.com/yannik2480/hikvision_bridge/issues/84)); the names and values are
+  theirs, so it can drop its own subclass.
 
 ## [0.1.5] - 2026-11-26
 

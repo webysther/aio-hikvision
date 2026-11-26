@@ -274,6 +274,7 @@ async def test_bare_200_without_multipart_gives_up_after_three_closes(run_feed, 
     # Three quick connections, then the long retry: no reconnects in a tight loop.
     assert connects == alarm.stats.connects == feed.BARE_LIMIT
     assert alarm.stats.last_error == feed.NO_STREAM
+    assert alarm.behaviour is feed.StreamBehaviour.NO_STREAM
     assert not alarm.connected
     assert not frames
     assert "answers the event stream request without events" in caplog.text
@@ -304,6 +305,7 @@ async def test_stream_that_comes_back_after_being_unsupported(run_feed, monkeypa
     await _until(lambda: frames)
     assert alarm.connected
     assert states[-1] == (True, None)
+    assert alarm.behaviour is feed.StreamBehaviour.NO_STREAM  # until this connection ends
 
 
 async def test_quick_closes_back_off_instead_of_retrying_at_the_first_delay(run_feed, monkeypatch) -> None:
@@ -316,6 +318,7 @@ async def test_quick_closes_back_off_instead_of_retrying_at_the_first_delay(run_
     await asyncio.sleep(0.5)
     assert 1 <= alarm.stats.connects <= 2
     assert alarm.stats.last_error == feed.QUICK_CLOSE_ERROR
+    assert alarm.behaviour is feed.StreamBehaviour.QUICK_CLOSE
     assert not frames
 
 

@@ -10,6 +10,7 @@ import time
 from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from enum import Enum
 from typing import Any
 
 from aiohikvision.isapi.wire.faults import BadCredentials, BridgeFault, LockedOut, Unsupported, detail
@@ -481,6 +482,113 @@ async def stream_missing(link: IsapiLink, path: str = STREAM_PATH) -> bool:
         return False
 
 
+class SessionEnd(Enum):
+    """Why a connection to the event stream ended without an error."""
+
+    CLOSED = "closed"  # the device closed it
+    QUIET = "quiet"  # nothing came for SILENCE_LIMIT
+
+
+@dataclass(frozen=True, slots=True)
+class Session:
+    """What one connection to the event stream did: what the reconnect decision reads."""
+
+    end: SessionEnd
+    multipart: bool  # the answer named a multipart boundary
+    frames: int  # frames delivered (backlog replays dropped are not)
+    seconds: float  # from the answer to the end
+
+    @property
+    def bare(self) -> bool:
+        """A 200 without a multipart body that delivered nothing: no event stream behind it."""
+        return not self.multipart and not self.frames
+
+    @property
+    def worked(self) -> bool:
+        """It showed a working stream: frames, a quiet device, or a connection that lasted."""
+        return bool(self.frames) or self.end is SessionEnd.QUIET or self.seconds >= QUICK_CLOSE
+
+
+class StreamBehaviour(Enum):
+    """How the event stream of a device behaves, judged from its connections.
+
+    Each is a behaviour measured on some devices or firmware, decided in one place
+    (:class:`Reconnects`) instead of in the loop of the feed.
+    """
+
+    # Frames, or a connection that lasted: connect again after the first delay.
+    LIVE = "live"
+    # Nothing for SILENCE_LIMIT: door stations send no heartbeats. Reopened at once, and the
+    # feed stays connected (a failing reconnect still reports the drop).
+    QUIET = "quiet"
+    # Closed at once with nothing in it: no sign of a working stream, the backoff keeps growing.
+    QUICK_CLOSE = "quick_close"
+    # 200 without a multipart body, then closed: door stations on some firmware answer so (a
+    # bare XML declaration) instead of a 404 (hikvision_bridge #84). Backs off like QUICK_CLOSE.
+    BARE = "bare"
+    # BARE_LIMIT bare answers in a row: the device has no event stream. Reported as
+    # Unsupported, tried again every UNSUPPORTED_RETRY.
+    NO_STREAM = "no_stream"
+
+    @property
+    def error(self) -> str | None:
+        """What it records in ``FeedStats.last_error``; None when it is no error."""
+        return _BEHAVIOUR_ERRORS.get(self)
+
+
+_BEHAVIOUR_ERRORS = {
+    StreamBehaviour.QUICK_CLOSE: QUICK_CLOSE_ERROR,
+    StreamBehaviour.BARE: NO_STREAM,
+    StreamBehaviour.NO_STREAM: NO_STREAM,
+}
+
+
+@dataclass(frozen=True, slots=True)
+class Retry:
+    """The decision after a connection: how the stream behaves, and when to connect again."""
+
+    behaviour: StreamBehaviour
+    delay: float
+
+
+class Reconnects:
+    """When to connect again to an event stream, from what its connections did.
+
+    Pure, without I/O: the feed tells it each session or failure and follows the answer. The
+    delay starts at BACKOFF_FIRST and doubles up to BACKOFF_MAX until a connection works.
+    """
+
+    def __init__(self) -> None:
+        self._delay = BACKOFF_FIRST
+        self._bare_streak = 0
+
+    def after(self, session: Session) -> Retry:
+        """Judge a connection that ended without an error."""
+        self._bare_streak = self._bare_streak + 1 if session.bare else 0
+        if self._bare_streak >= BARE_LIMIT:
+            return Retry(StreamBehaviour.NO_STREAM, UNSUPPORTED_RETRY)
+        if session.worked:
+            self._delay = BACKOFF_FIRST
+        if session.end is SessionEnd.QUIET:
+            return Retry(StreamBehaviour.QUIET, 0.0)
+        if self._bare_streak:
+            behaviour = StreamBehaviour.BARE
+        elif session.worked:
+            behaviour = StreamBehaviour.LIVE
+        else:
+            behaviour = StreamBehaviour.QUICK_CLOSE
+        return Retry(behaviour, self._next_delay())
+
+    def after_failure(self) -> float:
+        """The delay after a connection that failed (refused, timed out, broken)."""
+        return self._next_delay()
+
+    def _next_delay(self) -> float:
+        delay = self._delay
+        self._delay = min(delay * 2, BACKOFF_MAX)
+        return delay
+
+
 class AlarmFeed:
     """Keeps the event stream of one device open and delivers frames."""
 
@@ -501,14 +609,16 @@ class AlarmFeed:
         # Where the offset came from: None (unknown), "heartbeat" or "event".
         self._offset_source: str | None = None
         self.stats = FeedStats()
-        # Whether the last answer had no multipart boundary, and how many such answers in a
-        # row delivered nothing.
-        self._bare = False
-        self._bare_streak = 0
+        self._behaviour: StreamBehaviour | None = None
 
     @property
     def connected(self) -> bool:
         return self._connected
+
+    @property
+    def behaviour(self) -> StreamBehaviour | None:
+        """How the stream behaved at its last connection; None before the first one ends."""
+        return self._behaviour
 
     @property
     def clock_offset(self) -> timedelta:
@@ -540,36 +650,18 @@ class AlarmFeed:
             await result
 
     async def _run(self) -> None:
-        delay = BACKOFF_FIRST
+        reconnects = Reconnects()
         while True:
-            frames_before = self.stats.frames
-            started = time.monotonic()
             try:
-                self._bare = False
-                went_quiet = await self._session()
-                delivered = self.stats.frames > frames_before
-                self._bare_streak = self._bare_streak + 1 if self._bare and not delivered else 0
-                if self._bare_streak:
-                    self.stats.last_error = NO_STREAM
-                if self._bare_streak >= BARE_LIMIT:
-                    await self._give_up_on_stream()
-                    await asyncio.sleep(UNSUPPORTED_RETRY)
-                    continue
-                if delivered or went_quiet or time.monotonic() - started >= QUICK_CLOSE:
-                    delay = BACKOFF_FIRST
-                elif not self._bare_streak:
-                    # Closed at once with nothing in it: keep the growing backoff.
-                    self.stats.last_error = QUICK_CLOSE_ERROR
-                if went_quiet:
-                    # Some devices (door stations) send no heartbeats: reconnect right away
-                    # and stay "connected", a failing reconnect still reports the drop.
-                    continue
-                await self._set_state(False, None)
+                retry = reconnects.after(await self._session())
+                await self._report(retry)
+                delay = retry.delay
             except (BadCredentials, LockedOut) as err:
                 self.stats.last_error = type(err).__name__
                 await self._set_state(False, err)
                 return
             except BridgeFault as err:
+                delay = reconnects.after_failure()
                 self.stats.last_error = type(err).__name__
                 _LOGGER.debug(
                     "Event stream of %s failed: %s; retrying in %d s",
@@ -581,16 +673,24 @@ class AlarmFeed:
             except asyncio.CancelledError:
                 raise
             except Exception as err:
+                delay = reconnects.after_failure()
                 self.stats.last_error = type(err).__name__
                 _LOGGER.exception("Event stream of %s failed unexpectedly", self._link.endpoint.host)
                 await self._set_state(False, None)
             await asyncio.sleep(delay)
-            delay = min(delay * 2, BACKOFF_MAX)
 
-    async def _give_up_on_stream(self) -> None:
-        """Stop the fast reconnects: the device has no event stream, polling carries on."""
-        self.stats.last_error = NO_STREAM
-        if self._bare_streak == BARE_LIMIT:
+    async def _report(self, retry: Retry) -> None:
+        """Make known how the stream behaved: the state, the last error, a warning."""
+        behaviour, previous = retry.behaviour, self._behaviour
+        self._behaviour = behaviour
+        if behaviour.error is not None:
+            self.stats.last_error = behaviour.error
+        if behaviour is StreamBehaviour.QUIET:
+            return
+        if behaviour is not StreamBehaviour.NO_STREAM:
+            await self._set_state(False, None)
+            return
+        if previous is not StreamBehaviour.NO_STREAM:
             _LOGGER.warning(
                 "%s answers the event stream request without events (%d times in a row); "
                 "relying on polling, retrying every %g s",
@@ -600,8 +700,8 @@ class AlarmFeed:
             )
         await self._set_state(False, Unsupported(NO_STREAM))
 
-    async def _session(self) -> bool:
-        """Run one connection; True when it ended because the device went quiet."""
+    async def _session(self) -> Session:
+        """Run one connection, and say what it did."""
         host = self._link.endpoint.host
         async with self._link.open_stream(self._path) as response:
             connected_at = datetime.now(UTC)
@@ -609,7 +709,6 @@ class AlarmFeed:
             self.stats.connected_since = connected_at
             content_type = response.headers.get("Content-Type", "")
             boundary = boundary_of(content_type)
-            self._bare = boundary is None
             splitter = MultipartSplitter(boundary)
             frames_before = self.stats.frames
             _LOGGER.debug(
@@ -619,6 +718,12 @@ class AlarmFeed:
                 "multipart boundary" if boundary else "no multipart boundary",
             )
             await self._set_state(True, None)
+            answered = time.monotonic()
+
+            def ended(end: SessionEnd) -> Session:
+                frames = self.stats.frames - frames_before
+                return Session(end, boundary is not None, frames, time.monotonic() - answered)
+
             pending: FeedFrame | None = None
             pending_until = 0.0
             last_chunk = time.monotonic()
@@ -640,7 +745,7 @@ class AlarmFeed:
                         host,
                         self.stats.frames - frames_before,
                     )
-                    return True
+                    return ended(SessionEnd.QUIET)
                 if not chunk:
                     if pending is not None:
                         self._deliver(pending, connected_at)
@@ -649,7 +754,7 @@ class AlarmFeed:
                         host,
                         self.stats.frames - frames_before,
                     )
-                    return False
+                    return ended(SessionEnd.CLOSED)
                 last_chunk = time.monotonic()
                 for part in splitter.push(chunk):
                     item = frame_from_part(part)
