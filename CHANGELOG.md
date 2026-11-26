@@ -4,6 +4,25 @@ All notable changes to aiohikvision. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the API.
 
+## [0.1.6] - Unreleased
+
+### Added
+
+- **The settings of a door station** (`DoorStation.read_settings`, `read_setting_values`,
+  `write_setting`): what it offers comes from its capabilities, each value is read back after
+  a change. Besides the image of its camera:
+  - its volumes (`/ISAPI/System/Audio`): the microphone (`input_volume`), the speaker
+    (`output_volume`) and the speaker during a call (`talk_volume`), with their ranges;
+  - how long each door stays open (`open_time`, its channel is the door's number), from
+    `AccessControl/Door/param`;
+  - what it says when a door opens (`door_voice_prompt`, `door_voice_prompt_type`), from
+    `AccessControl/AcsCfg`.
+- **How loaded a door station is** (`DoorStation.read_health`): its CPU, and how many clients
+  stream its video (only the count: the addresses of the clients are never read).
+- **What the inputs of a door station read** (`DoorStationInfo.inputs`,
+  `DoorStation.read_inputs`): a door contact, an exit button, or nothing, with the choices
+  each input offers.
+
 ## [0.1.5] - 2026-11-26
 
 ### Fixed

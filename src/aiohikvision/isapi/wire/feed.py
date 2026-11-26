@@ -24,6 +24,19 @@ MAX_PART_BYTES = 2 * 1024 * 1024
 SILENCE_LIMIT = 60.0
 BACKOFF_FIRST = 5.0
 BACKOFF_MAX = 300.0
+# A connection that ends sooner than this (seconds) without delivering anything is no sign of
+# a working stream, so it does not reset the backoff (hikvision_bridge #84).
+QUICK_CLOSE = 5.0
+# Connections in a row that answer 200 without a multipart body and deliver nothing: some door
+# stations answer so (a bare XML declaration, then a closed connection) instead of a 404.
+# After this many the stream counts as unsupported.
+BARE_LIMIT = 3
+# How often (seconds) a stream that counts as unsupported is tried again, in case its firmware
+# changes; the device is polled meanwhile.
+UNSUPPORTED_RETRY = 3600.0
+# ``FeedStats.last_error`` of those two cases.
+NO_STREAM = "no event stream: 200 without a multipart body"
+QUICK_CLOSE_ERROR = "stream closed right after connecting"
 BACKLOG_TOLERANCE = timedelta(seconds=5)
 # Devices replay their backlog right after connecting. Without heartbeats the device clock is
 # unknown, so a frame arriving later than this into a connection is taken as live.
@@ -488,6 +501,10 @@ class AlarmFeed:
         # Where the offset came from: None (unknown), "heartbeat" or "event".
         self._offset_source: str | None = None
         self.stats = FeedStats()
+        # Whether the last answer had no multipart boundary, and how many such answers in a
+        # row delivered nothing.
+        self._bare = False
+        self._bare_streak = 0
 
     @property
     def connected(self) -> bool:
@@ -525,9 +542,24 @@ class AlarmFeed:
     async def _run(self) -> None:
         delay = BACKOFF_FIRST
         while True:
+            frames_before = self.stats.frames
+            started = time.monotonic()
             try:
+                self._bare = False
                 went_quiet = await self._session()
-                delay = BACKOFF_FIRST
+                delivered = self.stats.frames > frames_before
+                self._bare_streak = self._bare_streak + 1 if self._bare and not delivered else 0
+                if self._bare_streak:
+                    self.stats.last_error = NO_STREAM
+                if self._bare_streak >= BARE_LIMIT:
+                    await self._give_up_on_stream()
+                    await asyncio.sleep(UNSUPPORTED_RETRY)
+                    continue
+                if delivered or went_quiet or time.monotonic() - started >= QUICK_CLOSE:
+                    delay = BACKOFF_FIRST
+                elif not self._bare_streak:
+                    # Closed at once with nothing in it: keep the growing backoff.
+                    self.stats.last_error = QUICK_CLOSE_ERROR
                 if went_quiet:
                     # Some devices (door stations) send no heartbeats: reconnect right away
                     # and stay "connected", a failing reconnect still reports the drop.
@@ -555,6 +587,19 @@ class AlarmFeed:
             await asyncio.sleep(delay)
             delay = min(delay * 2, BACKOFF_MAX)
 
+    async def _give_up_on_stream(self) -> None:
+        """Stop the fast reconnects: the device has no event stream, polling carries on."""
+        self.stats.last_error = NO_STREAM
+        if self._bare_streak == BARE_LIMIT:
+            _LOGGER.warning(
+                "%s answers the event stream request without events (%d times in a row); "
+                "relying on polling, retrying every %g s",
+                self._link.endpoint.host,
+                BARE_LIMIT,
+                UNSUPPORTED_RETRY,
+            )
+        await self._set_state(False, Unsupported(NO_STREAM))
+
     async def _session(self) -> bool:
         """Run one connection; True when it ended because the device went quiet."""
         host = self._link.endpoint.host
@@ -564,6 +609,7 @@ class AlarmFeed:
             self.stats.connected_since = connected_at
             content_type = response.headers.get("Content-Type", "")
             boundary = boundary_of(content_type)
+            self._bare = boundary is None
             splitter = MultipartSplitter(boundary)
             frames_before = self.stats.frames
             _LOGGER.debug(

@@ -1,4 +1,4 @@
-"""Device status (uptime, CPU, memory, reboots) and per-channel recording of recorders."""
+"""Device status (uptime, CPU, memory, reboots), open video sessions, recorder recording."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from aiohikvision.isapi.wire.xmlview import XmlNode
 
 STATUS_PATH = "/ISAPI/System/status"
 WORKING_PATH = "/ISAPI/System/workingstatus?format=json"
+STREAMING_STATUS_PATH = "/ISAPI/Streaming/status"
 # Some firmware puts a Unix timestamp into totalRebootCount; no real counter gets this high.
 MAX_REBOOTS = 100_000
 # Values in this range (2000-01-01 to 2100-01-01) are read as such a timestamp.
@@ -76,6 +77,21 @@ def parse_status(document: XmlNode | None, *, memory_in_mb: bool) -> DeviceHealt
 async def read_status(link: IsapiLink, *, memory_in_mb: bool) -> DeviceHealth | None:
     document = await link.read_xml(STATUS_PATH, optional=True)
     return parse_status(document, memory_in_mb=memory_in_mb)
+
+
+def parse_session_count(document: XmlNode | None) -> int | None:
+    """How many video sessions are open. Only the count is read: the list beside it names the
+    address of every client, which is never kept.
+    """
+    if document is None:
+        return None
+    count = _number(document.text("totalStreamingSessions"))
+    return int(count) if count is not None and count >= 0 else None
+
+
+async def read_session_count(link: IsapiLink) -> int | None:
+    """How many clients stream from the device now (RTSP or HTTP); None when it does not say."""
+    return parse_session_count(await link.read_xml(STREAMING_STATUS_PATH, optional=True))
 
 
 def parse_recording(document: Any) -> dict[str, bool]:

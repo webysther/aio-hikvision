@@ -257,3 +257,71 @@ async def test_heartbeat_devices_keep_dropping_old_events_late_in_a_connection(r
     await _until(lambda: len(frames) == 1)
     await _until(lambda: alarm.stats.backlog_dropped == 1)
     assert alarm.clock_offset_source == "heartbeat"
+
+
+BARE_BODY = '<?xml version="1.0" encoding="UTF-8"?>'
+
+
+async def test_bare_200_without_multipart_gives_up_after_three_closes(run_feed, monkeypatch, caplog) -> None:
+    # Door stations answer 200 with only an XML declaration and close at once (hikvision_bridge #84).
+    monkeypatch.setattr(feed, "BACKOFF_FIRST", 0.01)
+    monkeypatch.setattr(feed, "UNSUPPORTED_RETRY", 60.0)
+    device = FakeIsapiDevice(overrides={feed.STREAM_PATH: (200, BARE_BODY)})
+    alarm, frames, states = await run_feed(device)
+    await _until(lambda: bool(states) and isinstance(states[-1][1], faults.Unsupported))
+    connects = alarm.stats.connects
+    await asyncio.sleep(0.2)
+    # Three quick connections, then the long retry: no reconnects in a tight loop.
+    assert connects == alarm.stats.connects == feed.BARE_LIMIT
+    assert alarm.stats.last_error == feed.NO_STREAM
+    assert not alarm.connected
+    assert not frames
+    assert "answers the event stream request without events" in caplog.text
+
+
+async def test_unsupported_stream_is_retried_and_warned_about_once(run_feed, monkeypatch, caplog) -> None:
+    monkeypatch.setattr(feed, "BACKOFF_FIRST", 0.01)
+    monkeypatch.setattr(feed, "UNSUPPORTED_RETRY", 0.05)
+    device = FakeIsapiDevice(overrides={feed.STREAM_PATH: (200, BARE_BODY)})
+    alarm, _, states = await run_feed(device)
+    await _until(lambda: alarm.stats.connects >= feed.BARE_LIMIT + 2)
+    await _until(lambda: isinstance(states[-1][1], faults.Unsupported))
+    assert caplog.text.count("answers the event stream request without events") == 1
+
+
+async def test_stream_that_comes_back_after_being_unsupported(run_feed, monkeypatch) -> None:
+    # A firmware update may bring the stream: the slow retry finds it.
+    monkeypatch.setattr(feed, "BACKOFF_FIRST", 0.01)
+    monkeypatch.setattr(feed, "UNSUPPORTED_RETRY", 0.1)
+    device = FakeIsapiDevice(
+        overrides={feed.STREAM_PATH: (200, BARE_BODY)},
+        stream_parts=[xml_part(event_xml("VMD", when=_now()))],
+        stream_hold=1,
+    )
+    alarm, frames, states = await run_feed(device)
+    await _until(lambda: bool(states) and isinstance(states[-1][1], faults.Unsupported))
+    del device.overrides[feed.STREAM_PATH]
+    await _until(lambda: frames)
+    assert alarm.connected
+    assert states[-1] == (True, None)
+
+
+async def test_quick_closes_back_off_instead_of_retrying_at_the_first_delay(run_feed, monkeypatch) -> None:
+    # A multipart stream that closes at once with nothing in it is not "working": the backoff
+    # keeps growing (0.2 s, 0.4 s, ...) rather than reconnecting every 0.2 s.
+    monkeypatch.setattr(feed, "BACKOFF_FIRST", 0.2)
+    device = FakeIsapiDevice()
+    alarm, frames, _ = await run_feed(device)
+    await _until(lambda: alarm.stats.connects >= 1)
+    await asyncio.sleep(0.5)
+    assert 1 <= alarm.stats.connects <= 2
+    assert alarm.stats.last_error == feed.QUICK_CLOSE_ERROR
+    assert not frames
+
+
+async def test_stream_with_events_still_delivers(run_feed) -> None:
+    device = FakeIsapiDevice(stream_parts=[xml_part(event_xml("VMD", when=_now()))], stream_hold=1)
+    alarm, frames, _ = await run_feed(device)
+    await _until(lambda: frames)
+    assert frames[0].raw_type == "VMD"
+    assert alarm.stats.last_error is None

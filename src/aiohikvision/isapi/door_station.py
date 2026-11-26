@@ -3,8 +3,10 @@
 The calls of a door station are SIP (``aiohikvision.sip``); everything else a door station does
 for its indoor station is here, on one authenticated link:
 
-- what it is (model, serial, firmware), and which doors and which speaker it has;
+- what it is (model, serial, firmware), and which doors, inputs and speaker it has;
 - opening a door (its lock relay);
+- how loaded it is (CPU, open video sessions);
+- its settings: image, volumes, how long each door stays open, its voice prompt;
 - its picture: a snapshot, and the RTSP address of its stream (sound included);
 - talking through its speaker outside a call (two-way audio). One talk at a time: a new one
   takes the speaker over, and the previous one ends as ``TalkEnd.REPLACED``.
@@ -21,8 +23,10 @@ from typing import TYPE_CHECKING
 from yarl import URL
 
 from aiohikvision.isapi.model.discover import read_identity_only, read_stream
-from aiohikvision.isapi.model.features import intercom, outputs
+from aiohikvision.isapi.model.features import adjust, health, inputs, intercom, outputs
 from aiohikvision.isapi.model.features import talk as two_way
+from aiohikvision.isapi.model.features.image import ImageCapability, ImageSetting, ImageValue
+from aiohikvision.isapi.model.features.inputs import Input
 from aiohikvision.isapi.model.features.outputs import Output, OutputUse
 from aiohikvision.isapi.model.features.talk import TalkChannel, TalkEnd, TalkError, TwoWayAudio
 from aiohikvision.isapi.model.ids import seg
@@ -41,6 +45,12 @@ ADMIN_ACCESSES = "/ISAPI/Security/adminAccesses"
 RTSP_PORT = 554
 # The main stream of the camera of a door station; its sub stream is 102.
 MAIN_STREAM = "101"
+# The camera and the audio of a door station are its channel 1.
+CAMERA_CHANNEL = "1"
+# The setting sources of a door station: the image of its camera (one of ``adjust.SOURCES``,
+# whose others belong to cameras and recorders: strobe, siren, park action, two-way audio
+# volumes), and ``adjust.DOOR_STATION_SOURCES``.
+SETTING_SOURCES = ("image", "audio", "door", "access")
 
 
 class NotADoorStation(BridgeFault):
@@ -77,6 +87,8 @@ class DoorStationInfo:
     # Its main stream (codec and size), when it says. Its pictures do not always have the
     # shape of this stream: a DS-KD8003 (V3.7.3) takes them 11:9 while it streams 16:9.
     stream: StreamSpec | None = None
+    # What its inputs read (door contact, exit button); empty when it does not say.
+    inputs: tuple[Input, ...] = ()
 
     def output_of(self, door: int) -> Output | None:
         """The output that drives a door, if the door station lists it."""
@@ -90,6 +102,36 @@ class DoorStationInfo:
             for door in self.doors
             if (output := self.output_of(door)) is None or output.use is OutputUse.ELECTRIC_LOCK
         )
+
+
+@dataclass(frozen=True, slots=True)
+class DoorStationHealth:
+    """How loaded a door station is; None where it does not say."""
+
+    cpu_percent: int | None = None
+    # Clients streaming its video (RTSP or HTTP); each one costs the door station CPU.
+    video_sessions: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Setting:
+    """A setting a door station offers: which one (``key``, of ``adjust.BY_KEY``), on which
+    channel (the camera, or the number of a door), and its choices or range.
+    """
+
+    key: str
+    channel: str
+    capability: ImageCapability
+
+    @property
+    def spec(self) -> ImageSetting:
+        """How the setting is read and written: its platform, its source, its unit."""
+        return adjust.BY_KEY[self.key]
+
+    @property
+    def ref(self) -> tuple[str, str]:
+        """The setting and its channel, as its value is found among the values."""
+        return (self.key, self.channel)
 
 
 def rtsp_port(accesses: XmlNode | None) -> int:
@@ -151,6 +193,7 @@ class DoorStation:
             rtsp_port=rtsp_port(accesses),
             outputs=await outputs.read_outputs(self.link),
             stream=await read_stream(self.link, MAIN_STREAM),
+            inputs=await inputs.read_inputs(self.link),
         )
         return self.info
 
@@ -163,6 +206,62 @@ class DoorStation:
         if self.info is not None:
             self.info = replace(self.info, outputs=read)
         return read
+
+    async def read_inputs(self) -> tuple[Input, ...]:
+        """Read again what the inputs read: its web page can change it at any time."""
+        read = await inputs.read_inputs(self.link)
+        if self.info is not None:
+            self.info = replace(self.info, inputs=read)
+        return read
+
+    async def read_health(self) -> DoorStationHealth:
+        """How loaded the door station is now: its CPU, and how many clients stream from it.
+
+        Its memory is left out: cameras report it on a scale nobody documents.
+        """
+        status = await health.read_status(self.link, memory_in_mb=False)
+        return DoorStationHealth(
+            cpu_percent=status.cpu_percent if status is not None else None,
+            video_sessions=await health.read_session_count(self.link),
+        )
+
+    def _setting_channels(self, source: str) -> tuple[str, ...]:
+        """The channels a source has here: each door for the doors, the camera otherwise."""
+        if source == "door":
+            doors = self.info.doors if self.info is not None and self.info.doors else (1,)
+            return tuple(str(door) for door in doors)
+        return (CAMERA_CHANNEL,)
+
+    async def read_settings(self) -> tuple[Setting, ...]:
+        """The settings the door station offers, from its capabilities (read once: they do not
+        change while it runs).
+        """
+        found: list[Setting] = []
+        for source in SETTING_SOURCES:
+            for channel in self._setting_channels(source):
+                offered = await adjust.source_of(source).read_capabilities(self.link, channel)
+                found.extend(Setting(key, channel, capability) for key, capability in offered.items())
+        return tuple(found)
+
+    async def read_setting_values(self, settings: tuple[Setting, ...]) -> dict[tuple[str, str], ImageValue]:
+        """The values of these settings now, by ``Setting.ref``; one the device did not
+        answer is left out.
+        """
+        wanted: dict[tuple[str, str], set[str]] = {}
+        for setting in settings:
+            wanted.setdefault((setting.spec.source, setting.channel), set()).add(setting.key)
+        values: dict[tuple[str, str], ImageValue] = {}
+        for (source, channel), keys in wanted.items():
+            read = await adjust.source_of(source).read_values(self.link, channel, keys)
+            for key, value in (read or {}).items():
+                values[(key, channel)] = value
+        return values
+
+    async def write_setting(self, setting: Setting, field: str, value: str) -> None:
+        """Change a setting (``field`` is the element its value was read from) and read it
+        back: a value the device does not keep raises ``VerifyMismatch``.
+        """
+        await adjust.write(self.link, setting.channel, setting.key, field, value)
 
     async def check(self) -> None:
         """Ask the device who it is, the lightest request: it raises when the device does not

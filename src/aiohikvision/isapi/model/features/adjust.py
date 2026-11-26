@@ -1,11 +1,17 @@
-"""All adjustable channel settings behind one interface: image, strobe, siren, speaker, park."""
+"""All adjustable settings behind one interface.
+
+``SOURCES`` are the settings of the channels of cameras and recorders (image, strobe, siren,
+speaker, park action): their users walk them for every channel. ``DOOR_STATION_SOURCES`` are
+those of a door station alone (its volumes, how long each door stays open, its voice prompt),
+read by ``DoorStation``: kept apart so that walking ``SOURCES`` asks a camera nothing new.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from aiohikvision.isapi.model.features import image, park, signals, speaker
+from aiohikvision.isapi.model.features import access, audio, doors, image, park, signals, speaker
 from aiohikvision.isapi.model.features.image import ImageCapability, ImageSetting, ImageValue
 from aiohikvision.isapi.wire.link import IsapiLink
 
@@ -40,10 +46,23 @@ SOURCES: dict[str, Source] = {
     "speaker": Source(speaker.SETTINGS, True, speaker.read_capabilities, speaker.read_values, speaker.write),
     "park": Source(park.SETTINGS, False, park.read_capabilities, park.read_values, park.write),
 }
+DOOR_STATION_SOURCES: dict[str, Source] = {
+    "audio": Source(audio.SETTINGS, True, audio.read_capabilities, audio.read_values, audio.write),
+    # The channel of a door's settings is the door's number.
+    "door": Source(doors.SETTINGS, True, doors.read_capabilities, doors.read_values, doors.write),
+    # Access settings belong to the device: their channel is ignored.
+    "access": Source(access.SETTINGS, True, access.read_capabilities, access.read_values, access.write),
+}
+_ALL_SOURCES = {**SOURCES, **DOOR_STATION_SOURCES}
 BY_KEY: dict[str, ImageSetting] = {
-    setting.key: setting for source in SOURCES.values() for setting in source.settings
+    setting.key: setting for source in _ALL_SOURCES.values() for setting in source.settings
 }
 
 
+def source_of(name: str) -> Source:
+    """A source by its name, among those of channels and those of door stations."""
+    return _ALL_SOURCES[name]
+
+
 async def write(link: IsapiLink, channel_id: str, key: str, field: str, value: str) -> None:
-    await SOURCES[BY_KEY[key].source].write(link, channel_id, key, field, value)
+    await _ALL_SOURCES[BY_KEY[key].source].write(link, channel_id, key, field, value)
