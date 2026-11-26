@@ -4,6 +4,17 @@ All notable changes to aiohikvision. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the API.
 
+## [0.1.1] - Unreleased
+
+### Fixed
+
+- `aiohikvision.isapi` matches Hikvision Bridge 0.9.23b12, so that the integration can
+  use it in place of its own copy: `model.audit.clock_skew_of` reads the clock error of a
+  device whose heartbeats carry its local time as UTC.
+- The task of an event stream is named after aiohikvision, not after an integration.
+- A request without a TLS context of its own leaves the TLS settings of the session alone
+  again (0.1.0 passed `ssl=True`, overriding a session made not to verify).
+
 ## [0.1.0] - 2026-11-26
 
 The first version: Home Assistant can be the SIP server and the callee of a Hikvision door
@@ -46,4 +57,5 @@ DS-KD8003-IME1(B), firmware V3.7.1 and V3.7.3 ([findings](docs/DEVICE_FINDINGS.m
 - **`scripts/door_server.py`:** the library as the door's server, from a terminal. Its `facade`
   mode rings until the door gives up; its `hybrid` mode answers and talks in tone bursts.
 
+[0.1.1]: https://github.com/webysther/aio-hikvision/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/webysther/aio-hikvision/releases/tag/v0.1.0

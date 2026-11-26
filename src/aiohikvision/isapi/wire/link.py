@@ -10,7 +10,7 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypedDict
 
 import aiohttp
 from aiohttp.http_exceptions import BadStatusLine
@@ -104,6 +104,12 @@ def _describe_status(status: DeviceStatus) -> str:
     return ", ".join(f"{key} {value}" for key, value in said.items() if value is not None) or ("nothing more")
 
 
+class TlsOptions(TypedDict, total=False):
+    """The TLS argument of a request: absent, the session's own settings apply."""
+
+    ssl: ssl.SSLContext
+
+
 @dataclass(frozen=True, slots=True)
 class Endpoint:
     """Where a device is reached."""
@@ -171,7 +177,7 @@ class IsapiLink:
         ``ssl_context``: used for HTTPS requests instead of the session's own TLS settings.
         """
         self._session = session
-        self._tls: dict[str, ssl.SSLContext] = (
+        self._tls: TlsOptions = (
             {"ssl": ssl_context} if ssl_context is not None and endpoint.scheme == "https" else {}
         )
         self.endpoint = endpoint
@@ -270,7 +276,7 @@ class IsapiLink:
                 data=body,
                 timeout=limits,
                 allow_redirects=False,
-                ssl=self._tls.get("ssl", True),
+                **self._tls,
             ) as response:
                 payload = await response.read()
                 return (
@@ -601,7 +607,7 @@ class IsapiLink:
                         data=payload,
                         timeout=timeout,
                         allow_redirects=False,
-                        ssl=self._tls.get("ssl", True),
+                        **self._tls,
                     )
                 except aiohttp.ClientConnectorCertificateError as err:
                     raise TlsUntrusted(str(err)) from err
