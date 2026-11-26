@@ -40,8 +40,8 @@ DS-KD8003-IME1(B), firmware V3.7.1 and V3.7.3 ([findings](docs/DEVICE_FINDINGS.m
 - **`DoorStation`:** the ISAPI side of a door station. It reads what the device is (and refuses
   one that is no door station), its doors, its speaker and its RTSP port; it opens a door, takes
   a snapshot, gives the stream's RTSP address, checks that the device answers (`check`), and
-  talks through the speaker outside a call
-  (`TwoWayAudio`: one talk at a time, a new one takes the speaker over).
+  talks through the speaker outside a call (`TwoWayAudio`: one talk at a time, a new one takes
+  the speaker over).
 - **`aiohikvision.isapi`:** the ISAPI client and device model of Hikvision Bridge (see NOTICE).
 - **`scripts/door_server.py`:** the library as the door's server, from a terminal. Its `facade`
   mode rings until the door gives up; its `hybrid` mode answers and talks in tone bursts.
