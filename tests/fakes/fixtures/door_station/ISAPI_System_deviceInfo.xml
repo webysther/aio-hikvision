@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DeviceInfo version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<deviceName>Door Station</deviceName>
+<deviceID>00000000-0000-4000-8000-000000000001</deviceID>
+<deviceDescription>VIS</deviceDescription>
+<deviceLocation>STD-CGI</deviceLocation>
+<systemContact>STD-CGI</systemContact>
+<model>DS-KD8003-IME1(B)</model>
+<serialNumber>DS-KD8003-IME1(B)0120250101ENFX0000001</serialNumber>
+<macAddress>00:00:5e:00:53:01</macAddress>
+<firmwareVersion>V3.7.3</firmwareVersion>
+<firmwareReleasedDate>build 260915</firmwareReleasedDate>
+<bootVersion>50790403</bootVersion>
+<bootReleasedDate>1706255</bootReleasedDate>
+<hardwareVersion>1-1-0</hardwareVersion>
+<deviceType>VIS</deviceType>
+<subDeviceType>doorStation</subDeviceType>
+<telecontrolID>88</telecontrolID>
+<supportBeep>true</supportBeep>
+<supportVideoLoss>true</supportVideoLoss>
+<alarmOutNum>2</alarmOutNum>
+<alarmInNum>4</alarmInNum>
+<RS485Num>1</RS485Num>
+<OEMCode>1</OEMCode>
+<bspVersion>V1.4.0.790168</bspVersion>
+<dspVersion>V2.9.20 build 20250610</dspVersion>
+<encryptionModel>0000</encryptionModel>
+<productionDate>2025-01-01</productionDate>
+<displayInterfaceSize>0</displayInterfaceSize>
+<releaseRegion>abroad</releaseRegion>
+</DeviceInfo>

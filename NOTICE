@@ -1,0 +1,8 @@
+aiohikvision
+Copyright 2026 Webysther Sperandio
+
+The ISAPI subpackage (aiohikvision.isapi: wire and model) and the fake ISAPI device of the
+tests (tests/fakes/isapi.py, with its fixtures) come from Hikvision Bridge
+(https://github.com/yannik2480/hikvision_bridge), by yannik2480, licensed under the
+Apache License, Version 2.0. They were moved out of that Home Assistant integration on
+2026-11-26, with their imports adapted; later changes are in the git history.

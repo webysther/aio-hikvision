@@ -1,0 +1,38 @@
+{
+ "/ISAPI/System/deviceInfo": {
+  "file": "ISAPI_System_deviceInfo.xml",
+  "status": 200
+ },
+ "/ISAPI/VideoIntercom/capabilities": {
+  "file": "ISAPI_VideoIntercom_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/AccessControl/RemoteControl/door/capabilities": {
+  "file": "ISAPI_AccessControl_RemoteControl_door_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/System/TwoWayAudio/channels": {
+  "file": "ISAPI_System_TwoWayAudio_channels.xml",
+  "status": 200
+ },
+ "/ISAPI/Security/adminAccesses": {
+  "file": "ISAPI_Security_adminAccesses.xml",
+  "status": 200
+ },
+ "/ISAPI/VideoIntercom/callStatus?format=json": {
+  "file": "ISAPI_VideoIntercom_callStatus.json",
+  "status": 200
+ },
+ "/ISAPI/Streaming/channels/101": {
+  "file": "ISAPI_Streaming_channels_101.xml",
+  "status": 200
+ },
+ "/ISAPI/System/Network/SIP": {
+  "file": "ISAPI_System_Network_SIP.xml",
+  "status": 200
+ },
+ "/ISAPI/VideoIntercom/operationTime": {
+  "file": "ISAPI_VideoIntercom_operationTime.xml",
+  "status": 200
+ }
+}

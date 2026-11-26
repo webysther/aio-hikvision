@@ -1,0 +1,10 @@
+# Text files are stored and checked out with LF, as they are written
+* text=auto eol=lf
+
+# Answers of real devices (anonymized): kept byte for byte
+tests/fakes/fixtures/** -text
+
+# Binary files: the assets of the probe (a picture with a name, an Opus tone)
+*.h264 binary
+*.bin binary
+*.png binary

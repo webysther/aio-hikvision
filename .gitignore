@@ -1,0 +1,11 @@
+# The captures of milestone 0 hold addresses, names and serials of a real installation:
+# they stay out of the repository; anonymized excerpts go to tests/fakes/fixtures
+captures/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+dist/
+__pycache__/
+*.egg-info/

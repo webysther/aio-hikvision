@@ -1,0 +1,8 @@
+# Prettier formats the YAML: the workflows. The rest keeps the format of what
+# writes it:
+
+# Markdown is wrapped by hand
+*.md
+
+# JSON: the fixtures, answers of real devices (anonymized), kept as they came
+*.json

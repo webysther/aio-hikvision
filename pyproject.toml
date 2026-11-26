@@ -1,0 +1,147 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aiohikvision"
+dynamic = ["version"]
+description = "Asyncio library for Hikvision devices: ISAPI (cameras, recorders, door stations) and the SIP calls of door stations"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Webysther Sperandio" }]
+requires-python = ">=3.13"
+keywords = ["asyncio", "camera", "door station", "hikvision", "home assistant", "intercom", "isapi", "nvr", "rtp", "sip"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Framework :: AsyncIO",
+  "Intended Audience :: Developers",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Communications :: Internet Phone",
+  "Topic :: Home Automation",
+  "Topic :: Software Development :: Libraries",
+  "Typing :: Typed",
+]
+dependencies = [
+  "aiohttp>=3.10",
+  # The library reaches into two private parts of aiosipua 0.7 (the method table of the
+  # UAS and the dispatch of the UDP transport), so the version is pinned
+  "aiosipua==0.7.1",
+  "cryptography>=42",
+  # Device XML is parsed with defusedxml (a guarded parser is the fallback)
+  "defusedxml>=0.7.1",
+  "yarl>=1.9",
+]
+
+[project.urls]
+Homepage = "https://github.com/webysther/aiohikvision"
+Issues = "https://github.com/webysther/aiohikvision/issues"
+
+[dependency-groups]
+dev = [
+  "mypy>=1.15",
+  "pytest>=8.3",
+  "pytest-asyncio>=1.0",
+  "pytest-cov>=6.0",
+  "ruff==0.14.4",
+  "types-defusedxml>=0.7",
+]
+
+[tool.hatch.version]
+path = "src/aiohikvision/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aiohikvision"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "CHANGELOG.md", "LICENSE", "NOTICE"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 110
+src = ["src", "tests"]
+extend-exclude = ["captures"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "COM812",  # conflicts with the formatter
+  "D203",    # incompatible with D211
+  "D213",    # incompatible with D212
+  "PLR0913", # keyword-only options on public methods
+]
+
+[tool.ruff.lint.flake8-type-checking]
+# Keep the imports of dataclass annotations at runtime (typing.get_type_hints).
+runtime-evaluated-decorators = ["dataclasses.dataclass"]
+
+[tool.ruff.lint.per-file-ignores]
+# The probe of milestone 0 and its sound and picture assets: measuring tools, kept as they were used
+"scripts/sip_probe.py" = ["ALL"]
+"scripts/assets/**" = ["ALL"]
+"scripts/door_server.py" = ["INP001"] # a script, not a package
+# Inherited from Hikvision Bridge (aiohikvision.isapi and its fake device): checked by mypy
+# --strict and the formatter already; these rules are to be tightened one at a time
+"src/aiohikvision/isapi/**" = [
+  "ANN401", "ARG001", "ARG002", "C901", "D101", "D102", "D103", "D105", "D107", "D205", "D401",
+  "DTZ007", "E501", "EM101", "EM102", "FBT001", "FBT002", "FBT003", "FURB162", "N818", "PERF401",
+  "PLR0911", "PLR0912", "PLR0915", "PLR2004", "S101", "S105", "SLF001", "TC001", "TC002", "TC003",
+  "TC004", "TRY003",
+]
+"tests/fakes/isapi.py" = [
+  "ANN401", "ARG001", "ARG002", "C901", "D101", "D102", "D103", "D105", "D107", "FBT002", "E501", "EM101", "FBT001",
+  "FBT003", "PLR0911", "PLR0912", "PLR2004", "S105", "S324", "TRY003",
+]
+"tests/isapi/**" = [
+  "ANN001", "ANN201", "ANN202", "ANN401", "ARG001", "ARG002", "ARG005", "D102", "D103", "D107", "D401",
+  "E501", "EM101", "FBT001", "FBT003", "PLR2004", "RET504", "S105", "S106", "S107", "S305", "S311",
+  "S324", "SLF001", "TRY003", "TRY301",
+]
+"tests/**" = [
+  "PLR2004", # magic values in assertions
+  "S101",    # assert
+  "SLF001",  # private access to test internals
+]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+files = ["src", "tests", "scripts/door_server.py"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+# The ISAPI tests came from Hikvision Bridge, which did not annotate its tests
+module = ["tests.isapi.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+# They read parsed frames without narrowing them first, and patch module attributes
+disable_error_code = ["arg-type", "attr-defined", "method-assign", "type-arg", "union-attr", "var-annotated"]
+
+[[tool.mypy.overrides]]
+# aiosipua ships py.typed, but some of its helpers are untyped
+module = ["aiosipua", "aiosipua.*"]
+follow_untyped_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["aiohikvision"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+# 95 for the library's own code; aiohikvision.isapi came with only part of its tests (the rest
+# exercise it through the integration), so the floor is the total measured when it moved
+fail_under = 77
+exclude_also = ["if TYPE_CHECKING:", "\\.\\.\\."]
