@@ -4,7 +4,7 @@ All notable changes to aiohikvision. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the API.
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-11-26
 
 The first version: Home Assistant can be the SIP server and the callee of a Hikvision door
 station. The design is hybrid: the call and the microphone go over SIP, and the door's picture and
