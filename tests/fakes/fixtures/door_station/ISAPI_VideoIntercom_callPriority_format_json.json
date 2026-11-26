@@ -1,0 +1,23 @@
+{
+	"CallPriority":	{
+		"Priorities":	[{
+				"targets":	{
+					"unitType":	["VoIP"]
+				},
+				"priority":	0,
+				"timeout":	60
+			}, {
+				"targets":	{
+					"unitType":	[]
+				},
+				"priority":	1,
+				"timeout":	60
+			}, {
+				"targets":	{
+					"unitType":	[]
+				},
+				"priority":	2,
+				"timeout":	60
+			}]
+	}
+}

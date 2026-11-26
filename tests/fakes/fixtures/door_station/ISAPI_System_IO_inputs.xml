@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IOInputPortList version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<IOInputPort version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<id min="1" max="4">1</id>
+<name>AI1</name>
+<IOUseType>doorStatus</IOUseType>
+</IOInputPort>
+<IOInputPort version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<id min="1" max="4">2</id>
+<name>AI2</name>
+<IOUseType>disable</IOUseType>
+</IOInputPort>
+<IOInputPort version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<id min="1" max="4">3</id>
+<name>AI3</name>
+<IOUseType>openDoor</IOUseType>
+</IOInputPort>
+<IOInputPort version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<id min="1" max="4">4</id>
+<name>AI4</name>
+<IOUseType>disable</IOUseType>
+</IOInputPort>
+</IOInputPortList>

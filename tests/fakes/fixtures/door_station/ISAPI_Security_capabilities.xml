@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SecurityCap version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<supportUserNums>32</supportUserNums>
+<userBondIpNums>0</userBondIpNums>
+<userBondMacNums>0</userBondMacNums>
+<isSupCertificate>false</isSupCertificate>
+<issupIllegalLoginLock>true</issupIllegalLoginLock>
+<isSupportOnlineUser>true</isSupportOnlineUser>
+<isSupportAnonymous>false</isSupportAnonymous>
+<isSupportStreamEncryption>false</isSupportStreamEncryption>
+<securityVersion opt="1,2">1</securityVersion>
+<keyIterateNum>100</keyIterateNum>
+<isSupportUserCheck>true</isSupportUserCheck>
+<isSupportSecurityQuestionConfig>true</isSupportSecurityQuestionConfig>
+<SecurityLimits>
+<LoginPasswordLenLimit min="1" max="16">16</LoginPasswordLenLimit>
+<SecurityAnswerLenLimit min="1" max="128">128</SecurityAnswerLenLimit>
+</SecurityLimits>
+<RSAKeyLength opt="1024,2048">2048</RSAKeyLength>
+<isSupportConfigFileImport>true</isSupportConfigFileImport>
+<isSupportConfigFileExport>true</isSupportConfigFileExport>
+<isIrreversible>true</isIrreversible>
+<salt>REDACTED</salt>
+<isSupportDeviceCertificatesManagement>true</isSupportDeviceCertificatesManagement>
+<isSupportSecurityEmail>true</isSupportSecurityEmail>
+<DoubleVerificationCap>
+<isSupportUsersConfig>true</isSupportUsersConfig>
+<isSupportUsersPermissionConfig>true</isSupportUsersPermissionConfig>
+<isSupportFactoryReset>true</isSupportFactoryReset>
+</DoubleVerificationCap>
+<isSupportEncryptCertificate>true</isSupportEncryptCertificate>
+<isSupportCertificateCustomID>true</isSupportCertificateCustomID>
+<isNotSupportLogSeverCertificate>false</isNotSupportLogSeverCertificate>
+</SecurityCap>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StreamingChannel version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<id opt="101,102">101</id>
+<enabled opt="true">true</enabled>
+<Transport>
+<ControlProtocolList>
+<ControlProtocol>
+<streamingTransport opt="RTSP,HTTP">RTSP</streamingTransport>
+</ControlProtocol>
+</ControlProtocolList>
+<Security>
+<enabled opt="true,false">true</enabled>
+</Security>
+</Transport>
+<Video>
+<enabled opt="true">true</enabled>
+<videoInputChannelID opt="1">1</videoInputChannelID>
+<videoCodecType opt="H.264,MJPEG,H.265">H.264</videoCodecType>
+<videoScanType opt="progressive">progressive</videoScanType>
+<videoResolutionWidth opt="1920,1280">1920</videoResolutionWidth>
+<videoResolutionHeight opt="1080,720">1080</videoResolutionHeight>
+<videoQualityControlType opt="VBR,CBR">VBR</videoQualityControlType>
+<constantBitRate min="2048" max="8192">4096</constantBitRate>
+<fixedQuality opt="1,20,40,60,80,100">100</fixedQuality>
+<vbrUpperCap min="2048" max="8192">4096</vbrUpperCap>
+<vbrLowerCap>32</vbrLowerCap>
+<maxFrameRate opt="1500,3000">3000</maxFrameRate>
+<keyFrameInterval min="33" max="13333">2000</keyFrameInterval>
+<snapShotImageType opt="JPEG">JPEG</snapShotImageType>
+<GovLength min="1" max="400">60</GovLength>
+</Video>
+<Audio>
+<enabled opt="true,false">true</enabled>
+<audioInputChannelID>1</audioInputChannelID>
+<audioCompressionType opt="G.711ulaw,G.711alaw">G.711ulaw</audioCompressionType>
+</Audio>
+<isSpportDynamicCapWithCondition>false</isSpportDynamicCapWithCondition>
+</StreamingChannel>

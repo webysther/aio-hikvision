@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AudioOutCap version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<id>1</id>
+<AudioOutVolumelist>
+<AudioOutVlome>
+<type opt="audioOutput">audioOutput</type>
+<talkVolume min="0" max="10" def="5">7</talkVolume>
+<volume min="0" max="10" def="7">7</volume>
+</AudioOutVlome>
+</AudioOutVolumelist>
+</AudioOutCap>

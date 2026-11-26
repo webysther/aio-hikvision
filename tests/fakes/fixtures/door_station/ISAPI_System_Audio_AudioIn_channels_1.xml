@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AudioIn version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<id>1</id>
+<AudioInVolumelist>
+<AudioInVlome>
+<type>audioInput</type>
+<volume>7</volume>
+</AudioInVlome>
+</AudioInVolumelist>
+<audioSamplingRate>8</audioSamplingRate>
+</AudioIn>

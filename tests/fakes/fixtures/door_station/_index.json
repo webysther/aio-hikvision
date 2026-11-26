@@ -42,5 +42,141 @@
  "/ISAPI/System/IO/outputs/capabilities": {
   "file": "ISAPI_System_IO_outputs_capabilities.xml",
   "status": 200
+ },
+ "/ISAPI/System/capabilities": {
+  "file": "ISAPI_System_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/Security/capabilities": {
+  "file": "ISAPI_Security_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/AccessControl/capabilities": {
+  "file": "ISAPI_AccessControl_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/AccessControl/AcsCfg/capabilities": {
+  "file": "ISAPI_AccessControl_AcsCfg_capabilities.json",
+  "status": 200
+ },
+ "/ISAPI/Streaming/channels/101/capabilities": {
+  "file": "ISAPI_Streaming_channels_101_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/Streaming/channels/102/capabilities": {
+  "file": "ISAPI_Streaming_channels_102_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/Image/channels/1/capabilities": {
+  "file": "ISAPI_Image_channels_1_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/System/Audio/capabilities": {
+  "file": "ISAPI_System_Audio_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/System/Audio/AudioIn/channels/1/capabilities": {
+  "file": "ISAPI_System_Audio_AudioIn_channels_1_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/System/Audio/AudioOut/channels/1/capabilities": {
+  "file": "ISAPI_System_Audio_AudioOut_channels_1_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/System/TwoWayAudio/channels/1/capabilities": {
+  "file": "ISAPI_System_TwoWayAudio_channels_1_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/System/IO/capabilities": {
+  "file": "ISAPI_System_IO_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/System/IO/inputs/capabilities": {
+  "file": "ISAPI_System_IO_inputs_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/System/time/capabilities": {
+  "file": "ISAPI_System_time_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/Event/capabilities": {
+  "file": "ISAPI_Event_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/Event/notification/subscribeEventCap": {
+  "file": "ISAPI_Event_notification_subscribeEventCap.xml",
+  "status": 200
+ },
+ "/ISAPI/ContentMgmt/capabilities": {
+  "file": "ISAPI_ContentMgmt_capabilities.xml",
+  "status": 200
+ },
+ "/ISAPI/Security/userCheck": {
+  "file": "ISAPI_Security_userCheck.xml",
+  "status": 200
+ },
+ "/ISAPI/Streaming/channels": {
+  "file": "ISAPI_Streaming_channels.xml",
+  "status": 200
+ },
+ "/ISAPI/Streaming/channels/102": {
+  "file": "ISAPI_Streaming_channels_102.xml",
+  "status": 200
+ },
+ "/ISAPI/Streaming/status": {
+  "file": "ISAPI_Streaming_status.xml",
+  "status": 200
+ },
+ "/ISAPI/System/status": {
+  "file": "ISAPI_System_status.xml",
+  "status": 200
+ },
+ "/ISAPI/System/time": {
+  "file": "ISAPI_System_time.xml",
+  "status": 200
+ },
+ "/ISAPI/System/Audio/AudioIn/channels/1": {
+  "file": "ISAPI_System_Audio_AudioIn_channels_1.xml",
+  "status": 200
+ },
+ "/ISAPI/System/Audio/AudioOut/channels/1": {
+  "file": "ISAPI_System_Audio_AudioOut_channels_1.xml",
+  "status": 200
+ },
+ "/ISAPI/System/IO/inputs": {
+  "file": "ISAPI_System_IO_inputs.xml",
+  "status": 200
+ },
+ "/ISAPI/System/Video/inputs/channels": {
+  "file": "ISAPI_System_Video_inputs_channels.xml",
+  "status": 200
+ },
+ "/ISAPI/Image/channels": {
+  "file": "ISAPI_Image_channels.xml",
+  "status": 200
+ },
+ "/ISAPI/VideoIntercom/deviceId": {
+  "file": "ISAPI_VideoIntercom_deviceId.xml",
+  "status": 200
+ },
+ "/ISAPI/VideoIntercom/callPriority?format=json": {
+  "file": "ISAPI_VideoIntercom_callPriority_format_json.json",
+  "status": 200
+ },
+ "/ISAPI/AccessControl/Door/param/1": {
+  "file": "ISAPI_AccessControl_Door_param_1.xml",
+  "status": 200
+ },
+ "/ISAPI/AccessControl/Door/param/2": {
+  "file": "ISAPI_AccessControl_Door_param_2.xml",
+  "status": 200
+ },
+ "/ISAPI/AccessControl/AcsCfg?format=json": {
+  "file": "ISAPI_AccessControl_AcsCfg_format_json.json",
+  "status": 200
+ },
+ "/ISAPI/System/DeviceLanguage": {
+  "file": "ISAPI_System_DeviceLanguage.xml",
+  "status": 200
  }
 }

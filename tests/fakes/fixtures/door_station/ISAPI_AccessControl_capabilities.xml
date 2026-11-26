@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AccessControl version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<isSupportM1CardEncryptCfg>true</isSupportM1CardEncryptCfg>
+<isSupportIdentityTerminal>true</isSupportIdentityTerminal>
+<isSupportDeployInfo>true</isSupportDeployInfo>
+<isSupportRemoteControlDoor>true</isSupportRemoteControlDoor>
+<isSupportUserInfo>true</isSupportUserInfo>
+<EmployeeNoInfo>
+<employeeNo min="1" max="32">1</employeeNo>
+<characterType opt="any,number">number</characterType>
+</EmployeeNoInfo>
+<isSupportCardInfo>true</isSupportCardInfo>
+<isSupportCardOperations>true</isSupportCardOperations>
+<isSupportFingerPrintCfg>true</isSupportFingerPrintCfg>
+<isSupportFingerPrintDelete>true</isSupportFingerPrintDelete>
+<isSupportCaptureFingerPrint>true</isSupportCaptureFingerPrint>
+<isSupportEventCardLinkageCfg>true</isSupportEventCardLinkageCfg>
+<isSupportAcsEvent>true</isSupportAcsEvent>
+<isSupportAcsEventTotalNum>true</isSupportAcsEventTotalNum>
+<isSupportClearEventCardLinkageCfg>true</isSupportClearEventCardLinkageCfg>
+<isSupportAcsWorkStatus>true</isSupportAcsWorkStatus>
+<isSupportDoorCfg>true</isSupportDoorCfg>
+<isSupportCardReaderCfg>false</isSupportCardReaderCfg>
+<isSupportAcsCfg>true</isSupportAcsCfg>
+<isSupportCaptureCardInfo>true</isSupportCaptureCardInfo>
+<isSupportNFCCfg>true</isSupportNFCCfg>
+<isSupportRFCardCfg>true</isSupportRFCardCfg>
+<isSupportMaintenanceDataExport>true</isSupportMaintenanceDataExport>
+<isSupportFingerDataEncryption>true</isSupportFingerDataEncryption>
+<isSupportClearPictureCfg>true</isSupportClearPictureCfg>
+<isSupportEventStorageCfg>true</isSupportEventStorageCfg>
+<isSupportPwMgrParams>true</isSupportPwMgrParams>
+<isSupportGetUserAvailablePw>true</isSupportGetUserAvailablePw>
+<isSupportCardRightWeekPlanCfg>true</isSupportCardRightWeekPlanCfg>
+<isSupportCardRightHolidayPlanCfg>true</isSupportCardRightHolidayPlanCfg>
+<isSupportUserRightHolidayGroupCfg>true</isSupportUserRightHolidayGroupCfg>
+<isSupportUserRightPlanTemplate>true</isSupportUserRightPlanTemplate>
+<isSupportSearchUserRightWeekPlan>true</isSupportSearchUserRightWeekPlan>
+<isSupportSearchUserRightHolidayPlan>true</isSupportSearchUserRightHolidayPlan>
+<isSupportSearchUserRightPlanTemplate>true</isSupportSearchUserRightPlanTemplate>
+<isSupportSearchUserRightHolidayGroup>true</isSupportSearchUserRightHolidayGroup>
+<isSupportDoorSecurityModulePairParams>true</isSupportDoorSecurityModulePairParams>
+</AccessControl>

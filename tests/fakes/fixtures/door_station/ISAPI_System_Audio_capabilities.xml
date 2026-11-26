@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AudioCap version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<audioInputNums>1</audioInputNums>
+<audioOutputNums>1</audioOutputNums>
+<isSupportAudioCodingPriorityParams>true</isSupportAudioCodingPriorityParams>
+</AudioCap>

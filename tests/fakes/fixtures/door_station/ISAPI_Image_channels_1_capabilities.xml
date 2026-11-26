@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ImageChannel version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<id>1</id>
+<enabled>true</enabled>
+<videoInputID>1</videoInputID>
+<WDR>
+<mode opt="close,open">open</mode>
+<WDRLevelExt min="0" max="15">0</WDRLevelExt>
+</WDR>
+<BLC>
+<enabled opt="ture,false">false</enabled>
+<BLCMode opt="UP,DOWN,LEFT,RIGHT,CENTER">CENTER</BLCMode>
+</BLC>
+<IrcutFilter>
+<IrcutFilterType opt="day,night,auto,schedule">auto</IrcutFilterType>
+<nightToDayFilterLevel opt="0,1,2,3,4,5,6,7">4</nightToDayFilterLevel>
+<Schedule>
+<scheduleType>day</scheduleType>
+<TimeRange>
+<beginTime>06:00:00</beginTime>
+<endTime>18:00:00</endTime>
+</TimeRange>
+</Schedule>
+</IrcutFilter>
+<Sharpness>
+<SharpnessLevel min="0" max="100">50</SharpnessLevel>
+</Sharpness>
+<powerLineFrequency>
+<powerLineFrequencyMode opt="50hz,60hz">60hz</powerLineFrequencyMode>
+</powerLineFrequency>
+<Color>
+<brightnessLevel min="0" max="100">50</brightnessLevel>
+<contrastLevel min="0" max="100">50</contrastLevel>
+<saturationLevel min="0" max="100">50</saturationLevel>
+</Color>
+</ImageChannel>

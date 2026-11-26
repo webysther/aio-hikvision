@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DeviceId version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<unitType>outdoor</unitType>
+<periodNumber>1</periodNumber>
+<buildingNumber>1</buildingNumber>
+<unitNumber>1</unitNumber>
+<floorNumber>1</floorNumber>
+<deviceIndex>0</deviceIndex>
+<enabled>true</enabled>
+<industryType>builidings</industryType>
+</DeviceId>

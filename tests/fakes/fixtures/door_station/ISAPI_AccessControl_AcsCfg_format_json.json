@@ -1,0 +1,7 @@
+{
+	"AcsCfg":	{
+		"openDoorVoicePromptEnabled":	true,
+		"openDoorVoicePromptType":	"doorIsOpen",
+		"uploadVerificationPic":	true
+	}
+}

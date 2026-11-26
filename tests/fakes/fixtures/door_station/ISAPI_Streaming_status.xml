@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StreamingStatus version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<totalStreamingSessions>5</totalStreamingSessions>
+<StreamingSessionStatusList version="1.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<StreamingSessionStatus>
+<clientAddress>
+<ipAddress>192.0.2.10</ipAddress>
+</clientAddress>
+</StreamingSessionStatus>
+<StreamingSessionStatus>
+<clientAddress>
+<ipAddress>192.0.2.11</ipAddress>
+</clientAddress>
+</StreamingSessionStatus>
+<StreamingSessionStatus>
+<clientAddress>
+<ipAddress>192.0.2.12</ipAddress>
+</clientAddress>
+</StreamingSessionStatus>
+<StreamingSessionStatus>
+<clientAddress>
+<ipAddress>192.0.2.12</ipAddress>
+</clientAddress>
+</StreamingSessionStatus>
+<StreamingSessionStatus>
+<clientAddress>
+<ipAddress>192.0.2.10</ipAddress>
+</clientAddress>
+</StreamingSessionStatus>
+</StreamingSessionStatusList>
+</StreamingStatus>

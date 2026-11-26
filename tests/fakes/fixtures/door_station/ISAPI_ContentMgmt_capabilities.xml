@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RacmCap version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<isSupportExtHdCfg>false</isSupportExtHdCfg>
+<recordSearchType opt="AllEvent,scheduledRecordUpload,MOTION,CallRecord">scheduledRecordUpload</recordSearchType>
+<SecurityLog>
+<isSupportSecurityLog>false</isSupportSecurityLog>
+<isSupportLogServer>true</isSupportLogServer>
+<isSupportLogServerTest>false</isSupportLogServerTest>
+<SecurityLogTypeList>
+<SecurityLogType>
+<primaryType>All</primaryType>
+<secondaryType opt="all">all</secondaryType>
+</SecurityLogType>
+</SecurityLogTypeList>
+</SecurityLog>
+<isSupportLogSearch>true</isSupportLogSearch>
+<isSupportRecordSearch>false</isSupportRecordSearch>
+<isSupportRecordDownload>false</isSupportRecordDownload>
+</RacmCap>
