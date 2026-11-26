@@ -119,9 +119,10 @@ class DeviceStatus:
     retries_left: int | None = None
 
 
-# The statusCode of a ResponseStatus that mean success: 1 is OK, and 7 ("Reboot Required")
-# says the change was applied and takes effect after a reboot.
-_SUCCESS_CODES = frozenset({1, 7})
+# The statusCode of a ResponseStatus that mean success: 0 and 1 are OK (the ISAPI guide
+# lists both), and 7 ("Reboot Required") says the change was applied and takes effect
+# after a reboot.
+_SUCCESS_CODES = frozenset({0, 1, 7})
 # Each lock field under its names: the login check (userCheck) and the ISAPI guide's
 # ResponseStatus name them differently.
 _RETRIES_LEFT = ("retryLoginTime", "retryTimes")

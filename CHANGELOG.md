@@ -4,6 +4,13 @@ All notable changes to aiohikvision. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the API.
 
+## [0.1.5] - Unreleased
+
+### Fixed
+
+- A response whose `statusCode` is 0 is a success, as the ISAPI guide lists it beside 1,
+  no longer a `DeviceRejected`.
+
 ## [0.1.4] - 2026-11-26
 
 ### Added

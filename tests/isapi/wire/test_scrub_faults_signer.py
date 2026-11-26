@@ -84,6 +84,8 @@ def test_reboot_required_is_a_success() -> None:
         "<subStatusCode>rebootRequired</subStatusCode></ResponseStatus>"
     )
     assert faults.classify(200, applied) is None
+    zero = "<ResponseStatus><statusCode>0</statusCode><subStatusCode>ok</subStatusCode></ResponseStatus>"
+    assert faults.classify(200, zero) is None
     failed = "<ResponseStatus><statusCode>6</statusCode><subStatusCode>badParameters</subStatusCode></ResponseStatus>"
     assert isinstance(faults.classify(200, failed), faults.DeviceRejected)
 

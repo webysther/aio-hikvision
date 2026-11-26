@@ -14,7 +14,7 @@ from aiohikvision.sip.calls import CallError, CallServer, CallState, DoorCall, E
 from aiohikvision.sip.registrar import DoorRegistrar, Registration
 from aiohikvision.sip.transport import DoorTransport, is_keepalive
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 
 __all__ = [
     "CallError",
