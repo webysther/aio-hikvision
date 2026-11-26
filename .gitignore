@@ -9,3 +9,6 @@ captures/
 dist/
 __pycache__/
 *.egg-info/
+
+# The lock of uv for local development: a library is tested against the latest of its dependencies
+uv.lock
