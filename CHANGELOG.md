@@ -4,6 +4,16 @@ All notable changes to aiohikvision. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the API.
 
+## [0.1.3] - Unreleased
+
+### Added
+
+- **The main stream of a door station** (`DoorStationInfo.stream`): its codec and size,
+  from `/ISAPI/Streaming/channels/101`, or None when the device does not say. Its pictures
+  do not always have the shape of its stream (a DS-KD8003 takes them 11:9 while it streams
+  16:9), so a picture can be shown in the shape of the live video. `read_stream` reads one
+  stream of any device.
+
 ## [0.1.2] - 2026-11-26
 
 ### Added

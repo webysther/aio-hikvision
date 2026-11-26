@@ -60,6 +60,9 @@ async def test_what_a_door_station_is(serve, session) -> None:
         ),
     )
     assert info.locks == (1,)
+    # Its main stream, whose shape its pictures do not always have
+    assert info.stream is not None
+    assert (info.stream.codec, info.stream.width, info.stream.height) == ("H.264", 1920, 1080)
     assert door.info is info
     assert await door.call_status() == "idle"
 
@@ -106,6 +109,12 @@ async def test_a_door_station_that_lists_no_outputs(serve, session) -> None:
     assert info.outputs == ()
     assert info.locks == (1, 2)
     assert await door.read_outputs() == ()
+
+
+async def test_a_door_station_that_does_not_describe_its_stream(serve, session) -> None:
+    device = FakeIsapiDevice("door_station", overrides={"/ISAPI/Streaming/channels/101": (404, "")})
+    door = await station(serve, session, device)
+    assert (await door.read_info()).stream is None
 
 
 OUTPUTS = (

@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 from yarl import URL
 
-from aiohikvision.isapi.model.discover import read_identity_only
+from aiohikvision.isapi.model.discover import read_identity_only, read_stream
 from aiohikvision.isapi.model.features import intercom, outputs
 from aiohikvision.isapi.model.features import talk as two_way
 from aiohikvision.isapi.model.features.outputs import Output, OutputUse
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
     import aiohttp
 
-    from aiohikvision.isapi.model.inventory import Identity
+    from aiohikvision.isapi.model.inventory import Identity, StreamSpec
 
 ADMIN_ACCESSES = "/ISAPI/Security/adminAccesses"
 RTSP_PORT = 554
@@ -74,6 +74,9 @@ class DoorStationInfo:
     rtsp_port: int = RTSP_PORT
     # What its outputs drive (the output of door N is output N); empty when it does not say.
     outputs: tuple[Output, ...] = ()
+    # Its main stream (codec and size), when it says. Its pictures do not always have the
+    # shape of this stream: a DS-KD8003 (V3.7.3) takes them 11:9 while it streams 16:9.
+    stream: StreamSpec | None = None
 
     def output_of(self, door: int) -> Output | None:
         """The output that drives a door, if the door station lists it."""
@@ -147,6 +150,7 @@ class DoorStation:
             talk=await two_way.read(self.link),
             rtsp_port=rtsp_port(accesses),
             outputs=await outputs.read_outputs(self.link),
+            stream=await read_stream(self.link, MAIN_STREAM),
         )
         return self.info
 

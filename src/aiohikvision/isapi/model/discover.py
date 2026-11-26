@@ -8,7 +8,7 @@ from collections.abc import Coroutine
 from typing import Any
 
 from aiohikvision.isapi.model.features import detection, intercom, io, linkage, privacy, storage, talk
-from aiohikvision.isapi.model.ids import numeric_id
+from aiohikvision.isapi.model.ids import numeric_id, seg
 from aiohikvision.isapi.model.inventory import (
     ChannelProfile,
     ChannelSource,
@@ -119,6 +119,14 @@ def _streams(listing: XmlNode | None) -> dict[str, list[StreamSpec]]:
             )
         )
     return by_channel
+
+
+async def read_stream(link: IsapiLink, stream_id: str) -> StreamSpec | None:
+    """The settings of one stream (its codec, size and sound), or None when the device does
+    not say or the stream is off.
+    """
+    document = await link.read_xml(f"/ISAPI/Streaming/channels/{seg(stream_id)}", optional=True)
+    return next((spec for specs in _streams(document).values() for spec in specs), None)
 
 
 def _channel_kinds(document: XmlNode | None) -> dict[str, set[str]]:
