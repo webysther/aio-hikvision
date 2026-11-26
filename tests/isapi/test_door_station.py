@@ -51,10 +51,13 @@ async def test_what_a_door_station_is(serve, session) -> None:
     assert info.call_status
     assert info.talk == TalkChannel("1", "G.711ulaw")
     assert info.rtsp_port == 554
-    # COM2 drives a mechanical doorbell: door 2 is listed, but it does not open
+    # COM2 drives a mechanical doorbell: door 2 is listed, but it does not open.
+    # Its capabilities (as a DS-KD8003 V3.7.3 answers) say what else it could drive.
     assert info.outputs == (
-        Output(1, "COM1", OutputUse.ELECTRIC_LOCK),
-        Output(2, "COM2", OutputUse.DOORBELL),
+        Output(1, "COM1", OutputUse.ELECTRIC_LOCK, (OutputUse.ELECTRIC_LOCK,)),
+        Output(
+            2, "COM2", OutputUse.DOORBELL, (OutputUse.DISABLED, OutputUse.ELECTRIC_LOCK, OutputUse.DOORBELL)
+        ),
     )
     assert info.locks == (1,)
     assert door.info is info

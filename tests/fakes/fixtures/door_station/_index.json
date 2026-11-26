@@ -38,5 +38,9 @@
  "/ISAPI/System/IO/outputs": {
   "file": "ISAPI_System_IO_outputs.xml",
   "status": 200
+ },
+ "/ISAPI/System/IO/outputs/capabilities": {
+  "file": "ISAPI_System_IO_outputs_capabilities.xml",
+  "status": 200
  }
 }
