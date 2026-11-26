@@ -49,6 +49,9 @@ MAX_PARALLEL = 1
 # change costs at most three failed logins, below the device's login lock.
 HICCUPS_BEFORE_BLOCK = 2
 HICCUP_PAUSE = 20.0
+# Failed logins left to the person who types the password: once the device says only this
+# many remain before it locks the account, the link stops at once instead of retrying.
+LOGIN_ATTEMPTS_KEPT = 2
 # Seconds a lockout holds when the device does not say how long.
 LOCK_FALLBACK = 1800.0
 
@@ -443,6 +446,10 @@ class IsapiLink:
             return self._lock(LockedOut("device reports a lock", status.unlock_seconds))
         fresh = pick(parse_challenges(challenges))
         signer = self._signer
+        stale = fresh is not None and fresh.stale
+        if not stale and status.retries_left is not None and status.retries_left <= LOGIN_ATTEMPTS_KEPT:
+            # The device counted a failed login and is close to locking the account
+            return self._refuse_credentials(signer, challenges, status)
         if attempt == 0 and isinstance(signer, DigestSigner) and signed is not None:
             generation, was_proven = signed
             if generation != signer.generation:
@@ -471,7 +478,13 @@ class IsapiLink:
                 self.endpoint.host,
             )
             return AuthHiccup("refused after a fresh challenge")
-        self._blocked = BadCredentials("credentials rejected after a fresh challenge")
+        return self._refuse_credentials(signer, challenges, status)
+
+    def _refuse_credentials(
+        self, signer: Signer | None, challenges: list[str], status: DeviceStatus
+    ) -> BadCredentials:
+        """Block the link until the credentials are replaced."""
+        self._blocked = BadCredentials("credentials rejected after a fresh challenge", status.retries_left)
         # The details stay in the warning: a failed setup leaves no time to enable debug logs.
         _LOGGER.warning(
             "%s rejected the credentials; all requests stop until they are updated "

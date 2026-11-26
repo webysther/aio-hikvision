@@ -52,9 +52,17 @@ class InsecureAuth(BridgeFault):
 
 
 class BadCredentials(BridgeFault):
-    """The device rejected the credentials after a fresh challenge."""
+    """The device rejected the credentials after a fresh challenge.
+
+    ``retries_left`` is how many failed logins the device still allows before it locks the
+    account, when it says.
+    """
 
     translation_key = "bad_credentials"
+
+    def __init__(self, message: str = "", retries_left: int | None = None) -> None:
+        super().__init__(message)
+        self.retries_left = retries_left
 
 
 class LockedOut(BridgeFault):
@@ -111,6 +119,13 @@ class DeviceStatus:
     retries_left: int | None = None
 
 
+# The statusCode of a ResponseStatus that mean success: 1 is OK, and 7 ("Reboot Required")
+# says the change was applied and takes effect after a reboot.
+_SUCCESS_CODES = frozenset({1, 7})
+# Each lock field under its names: the login check (userCheck) and the ISAPI guide's
+# ResponseStatus name them differently.
+_RETRIES_LEFT = ("retryLoginTime", "retryTimes")
+_UNLOCK_SECONDS = ("unlockTime", "resLockTime")
 _TAG = r"<(?:\w+:)?{name}\b[^>]*>([^<]*)<"
 _UNSUPPORTED_SUB = {"notsupport", "invalidoperation", "notsupported", "methodnotallowed"}
 _PRIVILEGE_SUB = {"lowprivilege", "nopermission", "privilegeerror", "permissiondenied"}
@@ -120,6 +135,11 @@ _LOCK_SUB = {"userlocked", "iplocked", "userlock", "locked"}
 def _xml_value(text: str, name: str) -> str | None:
     match = re.search(_TAG.format(name=name), text, flags=re.IGNORECASE)
     return match.group(1).strip() if match else None
+
+
+def _first_xml(text: str, names: tuple[str, ...]) -> str | None:
+    """The value of the first of these elements the body has."""
+    return next((value for name in names if (value := _xml_value(text, name)) is not None), None)
 
 
 def _as_int(value: str | int | None) -> int | None:
@@ -146,8 +166,8 @@ def read_status(body: str) -> DeviceStatus:
                 sub_status=data.get("subStatusCode"),
                 error_message=data.get("errorMsg"),
                 lock_state=data.get("lockStatus"),
-                unlock_seconds=_as_int(data.get("unlockTime")),
-                retries_left=_as_int(data.get("retryLoginTime")),
+                unlock_seconds=_as_int(next((data[k] for k in _UNLOCK_SECONDS if k in data), None)),
+                retries_left=_as_int(next((data[k] for k in _RETRIES_LEFT if k in data), None)),
             )
         return DeviceStatus()
     return DeviceStatus(
@@ -156,8 +176,8 @@ def read_status(body: str) -> DeviceStatus:
         sub_status=_xml_value(body, "subStatusCode"),
         error_message=_xml_value(body, "errorMsg"),
         lock_state=_xml_value(body, "lockStatus"),
-        unlock_seconds=_as_int(_xml_value(body, "unlockTime")),
-        retries_left=_as_int(_xml_value(body, "retryLoginTime")),
+        unlock_seconds=_as_int(_first_xml(body, _UNLOCK_SECONDS)),
+        retries_left=_as_int(_first_xml(body, _RETRIES_LEFT)),
     )
 
 
@@ -174,8 +194,8 @@ def classify(http_status: int, body: str) -> BridgeFault | None:
     """Map a non-success response (other than 401) to a fault, or None for success."""
     if 200 <= http_status < 300:
         status = read_status(body) if body else DeviceStatus()
-        # Some firmwares answer 200 with an embedded failure.
-        if status.status_code not in (None, 1) and status.sub_status:
+        # Some firmwares answer 200 with an embedded failure; "reboot required" is no failure.
+        if status.status_code not in (None, *_SUCCESS_CODES) and status.sub_status:
             return _from_sub_status(http_status, status)
         return None
     status = read_status(body)

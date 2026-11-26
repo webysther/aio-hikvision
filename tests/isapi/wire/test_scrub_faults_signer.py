@@ -78,6 +78,29 @@ def test_classify_variants() -> None:
     )
 
 
+def test_reboot_required_is_a_success() -> None:
+    applied = (
+        "<ResponseStatus><statusCode>7</statusCode><statusString>Reboot Required</statusString>"
+        "<subStatusCode>rebootRequired</subStatusCode></ResponseStatus>"
+    )
+    assert faults.classify(200, applied) is None
+    failed = "<ResponseStatus><statusCode>6</statusCode><subStatusCode>badParameters</subStatusCode></ResponseStatus>"
+    assert isinstance(faults.classify(200, failed), faults.DeviceRejected)
+
+
+def test_the_lock_fields_under_both_names() -> None:
+    check = "<userCheck><lockStatus>unlock</lockStatus><unlockTime>0</unlockTime><retryLoginTime>4</retryLoginTime></userCheck>"
+    assert (faults.read_status(check).retries_left, faults.read_status(check).unlock_seconds) == (4, 0)
+    guide = "<ResponseStatus><lockStatus>lock</lockStatus><retryTimes>0</retryTimes><resLockTime>600</resLockTime></ResponseStatus>"
+    status = faults.read_status(guide)
+    assert (status.retries_left, status.unlock_seconds) == (0, 600)
+    assert faults.is_lock(status)
+    as_json = faults.read_status('{"lockStatus": "unlock", "retryTimes": 2, "resLockTime": 0}')
+    assert (as_json.retries_left, as_json.unlock_seconds) == (2, 0)
+    assert faults.read_status("<ResponseStatus/>").retries_left is None
+    assert faults.BadCredentials("rejected").retries_left is None
+
+
 def test_detail_names_what_the_device_said() -> None:
     assert (
         faults.detail(faults.DeviceRejected("Invalid Content", 400, "badParameters"))

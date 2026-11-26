@@ -4,6 +4,23 @@ All notable changes to aiohikvision. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the API.
 
+## [0.1.4] - Unreleased
+
+### Added
+
+- `BadCredentials.retries_left`: how many failed logins the device still allows before it
+  locks the account, when it says.
+
+### Fixed
+
+- **The account is no longer brought to its lock.** When the device says that two failed
+  logins or fewer remain, the link stops at once instead of trying again later: the last
+  attempts are left to the person who types the password.
+- A write the device applied but that takes effect after a reboot (`statusCode` 7, "Reboot
+  Required") is a success, no longer a `DeviceRejected`.
+- The lock fields are read under both of their names: `retryLoginTime` or `retryTimes`
+  (failed logins left), `unlockTime` or `resLockTime` (seconds until the lock lifts).
+
 ## [0.1.3] - 2026-11-26
 
 ### Added

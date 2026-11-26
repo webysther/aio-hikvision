@@ -50,6 +50,8 @@ class FakeIsapiDevice:
     # Refuse this many correctly signed requests (a device that briefly rejects logins).
     refuse_next: int = 0
     refuse_without_challenge: int = 0
+    # Say how many failed logins remain before the lock, as the login check does.
+    report_retries: bool = False
     # Refuse a request whose nonce count is not above the last one seen for its nonce.
     strict_count: bool = True
     counts: dict[str, int] = field(default_factory=dict)
@@ -104,7 +106,18 @@ class FakeIsapiDevice:
             if self.refuse_without_challenge > 0:
                 self.refuse_without_challenge -= 1
                 return web.Response(status=401)
-            return web.Response(status=401, headers={"WWW-Authenticate": self._challenge()})
+            body = (
+                f"<userCheck><statusValue>401</statusValue><lockStatus>unlock</lockStatus>"
+                f"<retryLoginTime>{self.lock_after - self.failed_logins}</retryLoginTime></userCheck>"
+                if self.report_retries
+                else ""
+            )
+            return web.Response(
+                status=401,
+                headers={"WWW-Authenticate": self._challenge()},
+                text=body or None,
+                content_type="application/xml" if body else None,
+            )
         self.counts[nonce] = count
         if params.get("uri") != request.path_qs:
             return web.Response(status=400, text="uri mismatch")

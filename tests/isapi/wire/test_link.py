@@ -179,6 +179,29 @@ async def test_changed_stored_password_costs_at_most_three_logins(rig, no_pause)
     assert device.failed_logins < device.lock_after
 
 
+async def test_no_retry_when_the_account_is_about_to_lock(rig, no_pause) -> None:
+    # The device locks after three failed logins, and says how many remain
+    device = FakeIsapiDevice(lock_after=3, report_retries=True)
+    link = await rig(device)
+    await link.read_xml("/ISAPI/System/deviceInfo")
+    device.password = "changed-on-device"
+    with pytest.raises(faults.BadCredentials) as caught:
+        await link.read_xml("/ISAPI/Event/triggers")
+    # Stopped at once: the last logins are left to the person who types the password
+    assert caught.value.retries_left == 2
+    assert device.failed_logins == 1
+    assert isinstance(link.blocked, faults.BadCredentials)
+
+
+async def test_retries_while_the_account_is_far_from_its_lock(rig, no_pause) -> None:
+    device = FakeIsapiDevice(lock_after=10, report_retries=True)
+    link = await rig(device)
+    await link.read_xml("/ISAPI/System/deviceInfo")
+    device.password = "changed-on-device"
+    with pytest.raises(faults.AuthHiccup):
+        await link.read_xml("/ISAPI/Event/triggers")
+
+
 async def test_lock_is_reported_and_blocks(rig) -> None:
     device = FakeIsapiDevice(lock_after=0)
     link = await rig(device)
