@@ -39,8 +39,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/webysther/aiohikvision"
-Issues = "https://github.com/webysther/aiohikvision/issues"
+Homepage = "https://github.com/webysther/aio-hikvision"
+Issues = "https://github.com/webysther/aio-hikvision/issues"
 
 [dependency-groups]
 dev = [

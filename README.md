@@ -53,7 +53,7 @@ time, a new one takes the speaker over).
 
 The door station calls over SIP; its picture and sound are read over RTSP. The
 library is the SIP server of the door's VoIP line and the callee of its calls
-([why](https://github.com/webysther/aiohikvision/blob/main/docs/ADR-0001-hybrid-call.md)):
+([why](https://github.com/webysther/aio-hikvision/blob/main/docs/ADR-0001-hybrid-call.md)):
 
 ```python
 import asyncio
@@ -121,7 +121,7 @@ uv run python scripts/door_server.py --advertise <ha-ip> --door <door-ip> hybrid
 ## What the door station does
 
 Measured on a DS-KD8003-IME1(B) with firmware V3.7.1 and V3.7.3:
-[docs/DEVICE_FINDINGS.md](https://github.com/webysther/aiohikvision/blob/main/docs/DEVICE_FINDINGS.md).
+[docs/DEVICE_FINDINGS.md](https://github.com/webysther/aio-hikvision/blob/main/docs/DEVICE_FINDINGS.md).
 In short: point its VoIP line at your server, set its SIP audio to G.711 only
 (its Opus is non-standard), and expect it to cancel after its ring time (60 s)
 and hang up at its talk time (90 s by default).
@@ -144,5 +144,5 @@ tool of the findings; its captures stay out of the repository.
 Apache License 2.0. The ISAPI subpackage comes from
 [Hikvision Bridge](https://github.com/yannik2480/hikvision_bridge), by yannik2480,
 under the same license: see
-[NOTICE](https://github.com/webysther/aiohikvision/blob/main/NOTICE). Hikvision is
+[NOTICE](https://github.com/webysther/aio-hikvision/blob/main/NOTICE). Hikvision is
 a trademark of its owner; this project is not affiliated with it.

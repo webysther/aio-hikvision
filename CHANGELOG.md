@@ -46,4 +46,4 @@ DS-KD8003-IME1(B), firmware V3.7.1 and V3.7.3 ([findings](docs/DEVICE_FINDINGS.m
 - **`scripts/door_server.py`:** the library as the door's server, from a terminal. Its `facade`
   mode rings until the door gives up; its `hybrid` mode answers and talks in tone bursts.
 
-[0.1.0]: https://github.com/webysther/aiohikvision/releases/tag/v0.1.0
+[0.1.0]: https://github.com/webysther/aio-hikvision/releases/tag/v0.1.0
