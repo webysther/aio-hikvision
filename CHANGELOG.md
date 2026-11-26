@@ -4,6 +4,22 @@ All notable changes to aiohikvision. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the API.
 
+## [0.1.2] - Unreleased
+
+### Added
+
+- **What the outputs of a door station drive** (`/ISAPI/System/IO/outputs`): an electric
+  lock, a mechanical doorbell, or nothing, as its web page sets them (Access Control → I/O
+  Settings). `DoorStationInfo.outputs` lists them (`Output`, `OutputUse`), with the uses each
+  can be set to when the device says, and `DoorStationInfo.locks` gives the doors that open.
+  `DoorStation.read_outputs()` reads them again, as they can change at any time.
+
+### Fixed
+
+- `DoorStation.open_door` refuses a door whose output drives no lock (`NotALock`). A door
+  station lists every door among those it can open remotely, even one whose relay rings a
+  doorbell.
+
 ## [0.1.1] - 2026-11-26
 
 ### Fixed
@@ -57,5 +73,6 @@ DS-KD8003-IME1(B), firmware V3.7.1 and V3.7.3 ([findings](docs/DEVICE_FINDINGS.m
 - **`scripts/door_server.py`:** the library as the door's server, from a terminal. Its `facade`
   mode rings until the door gives up; its `hybrid` mode answers and talks in tone bursts.
 
+[0.1.2]: https://github.com/webysther/aio-hikvision/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/webysther/aio-hikvision/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/webysther/aio-hikvision/releases/tag/v0.1.0

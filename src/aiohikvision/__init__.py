@@ -6,14 +6,15 @@ else is ISAPI (``aiohikvision.isapi``: ``DoorStation`` opens its doors, gives it
 stream, and plays sound through its speaker outside a call).
 """
 
-from aiohikvision.isapi.door_station import DoorStation, DoorStationInfo, NotADoorStation
+from aiohikvision.isapi.door_station import DoorStation, DoorStationInfo, NotADoorStation, NotALock
+from aiohikvision.isapi.model.features.outputs import Output, OutputUse
 from aiohikvision.isapi.model.features.talk import TalkEnd, TalkError, TwoWayAudio
 from aiohikvision.rtp.talkback import Packetizer, Talkback, TalkbackStats
 from aiohikvision.sip.calls import CallError, CallServer, CallState, DoorCall, EndReason
 from aiohikvision.sip.registrar import DoorRegistrar, Registration
 from aiohikvision.sip.transport import DoorTransport, is_keepalive
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = [
     "CallError",
@@ -26,6 +27,9 @@ __all__ = [
     "DoorTransport",
     "EndReason",
     "NotADoorStation",
+    "NotALock",
+    "Output",
+    "OutputUse",
     "Packetizer",
     "Registration",
     "TalkEnd",

@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING
 import aiohttp
 import pytest
 
-from aiohikvision.isapi.door_station import DoorStation, DoorStationInfo, NotADoorStation, rtsp_port
+from aiohikvision.isapi.door_station import DoorStation, DoorStationInfo, NotADoorStation, NotALock, rtsp_port
+from aiohikvision.isapi.model.features.outputs import Output, OutputUse, parse_outputs
 from aiohikvision.isapi.model.features.talk import TalkChannel, TalkEnd, TalkError
 from aiohikvision.isapi.model.inventory import Identity
 from aiohikvision.isapi.wire.faults import BadCredentials
@@ -50,6 +51,12 @@ async def test_what_a_door_station_is(serve, session) -> None:
     assert info.call_status
     assert info.talk == TalkChannel("1", "G.711ulaw")
     assert info.rtsp_port == 554
+    # COM2 drives a mechanical doorbell: door 2 is listed, but it does not open
+    assert info.outputs == (
+        Output(1, "COM1", OutputUse.ELECTRIC_LOCK),
+        Output(2, "COM2", OutputUse.DOORBELL),
+    )
+    assert info.locks == (1,)
     assert door.info is info
     assert await door.call_status() == "idle"
 
@@ -57,10 +64,82 @@ async def test_what_a_door_station_is(serve, session) -> None:
 async def test_opening_a_door(serve, session) -> None:
     device = FakeIsapiDevice("door_station")
     door = await station(serve, session, device)
-    await door.open_door(2)
+    await door.open_door(2)  # what its outputs drive is not known yet: it is tried
     method, path, body = device.writes[-1]
     assert (method, path) == ("PUT", "/ISAPI/AccessControl/RemoteControl/door/2")
     assert "<cmd>open</cmd>" in body
+
+
+async def test_a_door_without_a_lock_does_not_open(serve, session) -> None:
+    device = FakeIsapiDevice("door_station")
+    door = await station(serve, session, device)
+    await door.read_info()
+    with pytest.raises(NotALock) as raised:
+        await door.open_door(2)
+    assert (raised.value.door, raised.value.use) == (2, OutputUse.DOORBELL)
+    assert raised.value.translation_key == "not_a_lock"
+    assert not device.writes
+    await door.open_door(1)
+    assert device.writes[-1][1] == "/ISAPI/AccessControl/RemoteControl/door/1"
+
+
+async def test_the_outputs_are_read_again(serve, session) -> None:
+    device = FakeIsapiDevice("door_station")
+    door = await station(serve, session, device)
+    await door.read_info()
+    # Its web page sets COM2 to drive a lock
+    device.overrides["/ISAPI/System/IO/outputs"] = (200, OUTPUTS.format(second="electricLock"))
+    assert [output.use for output in await door.read_outputs()] == [OutputUse.ELECTRIC_LOCK] * 2
+    assert door.info is not None
+    assert door.info.locks == (1, 2)
+    await door.open_door(2)
+
+
+async def test_a_door_station_that_lists_no_outputs(serve, session) -> None:
+    device = FakeIsapiDevice("door_station", overrides={"/ISAPI/System/IO/outputs": (404, "")})
+    door = await station(serve, session, device)
+    info = await door.read_info()
+    # Every door it can open remotely is tried
+    assert info.outputs == ()
+    assert info.locks == (1, 2)
+    assert await door.read_outputs() == ()
+
+
+OUTPUTS = (
+    '<IOOutputPortList xmlns="http://www.isapi.org/ver20/XMLSchema">'
+    "<IOOutputPort><id>1</id><name>COM1</name><IOUseType>electricLock</IOUseType></IOOutputPort>"
+    "<IOOutputPort><id>2</id><name>COM2</name><IOUseType>{second}</IOUseType></IOOutputPort>"
+    "</IOOutputPortList>"
+)
+
+
+def test_what_the_outputs_drive_and_could() -> None:
+    ns = 'xmlns="http://www.isapi.org/ver20/XMLSchema"'
+    capabilities = parse(
+        f"<IOOutputPortList {ns}>"
+        '<IOOutputPort><id>1</id><IOUseType opt="electricLock">electricLock</IOUseType></IOOutputPort>'
+        '<IOOutputPort><id>2</id><IOUseType opt="disable,electricLock,mechanicalDoorbell">'
+        "disable</IOUseType></IOOutputPort></IOOutputPortList>"
+    )
+    read = parse_outputs(parse(OUTPUTS.format(second="disable")), capabilities)
+    assert read == (
+        Output(1, "COM1", OutputUse.ELECTRIC_LOCK, (OutputUse.ELECTRIC_LOCK,)),
+        Output(
+            2, "COM2", OutputUse.DISABLED, (OutputUse.DISABLED, OutputUse.ELECTRIC_LOCK, OutputUse.DOORBELL)
+        ),
+    )
+    # A use this library does not know, and no capabilities
+    assert parse_outputs(parse(OUTPUTS.format(second="siren")))[1].use is OutputUse.OTHER
+    assert parse_outputs(None) == ()
+    info = DoorStationInfo(
+        identity=Identity(serial="S", model="M", name="N", firmware="F"),
+        doors=(1, 2),
+        call_status=True,
+        talk=None,
+        outputs=read,
+    )
+    assert info.locks == (1,)
+    assert info.output_of(3) is None
 
 
 async def test_picture_and_stream(serve, session) -> None:

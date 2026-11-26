@@ -15,14 +15,15 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from yarl import URL
 
 from aiohikvision.isapi.model.discover import read_identity_only
-from aiohikvision.isapi.model.features import intercom
+from aiohikvision.isapi.model.features import intercom, outputs
 from aiohikvision.isapi.model.features import talk as two_way
+from aiohikvision.isapi.model.features.outputs import Output, OutputUse
 from aiohikvision.isapi.model.features.talk import TalkChannel, TalkEnd, TalkError, TwoWayAudio
 from aiohikvision.isapi.model.ids import seg
 from aiohikvision.isapi.wire.faults import BridgeFault
@@ -48,6 +49,17 @@ class NotADoorStation(BridgeFault):
     translation_key = "not_door_station"
 
 
+class NotALock(BridgeFault):
+    """The output of the door drives no lock (a doorbell, or nothing): it cannot open."""
+
+    translation_key = "not_a_lock"
+
+    def __init__(self, door: int, use: OutputUse) -> None:
+        super().__init__(f"the output of door {door} drives no lock: {use}")
+        self.door = door
+        self.use = use
+
+
 @dataclass(frozen=True, slots=True)
 class DoorStationInfo:
     """What a door station is and what it has."""
@@ -60,6 +72,21 @@ class DoorStationInfo:
     # Its speaker, if it plays G.711 (the sound a browser sends).
     talk: TalkChannel | None
     rtsp_port: int = RTSP_PORT
+    # What its outputs drive (the output of door N is output N); empty when it does not say.
+    outputs: tuple[Output, ...] = ()
+
+    def output_of(self, door: int) -> Output | None:
+        """The output that drives a door, if the door station lists it."""
+        return next((output for output in self.outputs if output.number == door), None)
+
+    @property
+    def locks(self) -> tuple[int, ...]:
+        """The doors that open: those whose output drives a lock, or all when unknown."""
+        return tuple(
+            door
+            for door in self.doors
+            if (output := self.output_of(door)) is None or output.use is OutputUse.ELECTRIC_LOCK
+        )
 
 
 def rtsp_port(accesses: XmlNode | None) -> int:
@@ -119,8 +146,19 @@ class DoorStation:
             call_status=bool(capabilities and capabilities.has_call_status),
             talk=await two_way.read(self.link),
             rtsp_port=rtsp_port(accesses),
+            outputs=await outputs.read_outputs(self.link),
         )
         return self.info
+
+    async def read_outputs(self) -> tuple[Output, ...]:
+        """Read again what the outputs drive: its web page can change it at any time.
+
+        Also proves the device answers, as ``check`` does (it raises the same faults).
+        """
+        read = await outputs.read_outputs(self.link)
+        if self.info is not None:
+            self.info = replace(self.info, outputs=read)
+        return read
 
     async def check(self) -> None:
         """Ask the device who it is, the lightest request: it raises when the device does not
@@ -129,7 +167,10 @@ class DoorStation:
         await read_identity_only(self.link)
 
     async def open_door(self, door: int = 1) -> None:
-        """Pulse the lock relay of a door."""
+        """Pulse the lock relay of a door; a door whose output drives no lock raises NotALock."""
+        output = self.info.output_of(door) if self.info else None
+        if output is not None and output.use is not OutputUse.ELECTRIC_LOCK:
+            raise NotALock(door, output.use)
         await intercom.remote_open_door(self.link, door)
 
     async def call_status(self) -> str | None:

@@ -34,5 +34,9 @@
  "/ISAPI/VideoIntercom/operationTime": {
   "file": "ISAPI_VideoIntercom_operationTime.xml",
   "status": 200
+ },
+ "/ISAPI/System/IO/outputs": {
+  "file": "ISAPI_System_IO_outputs.xml",
+  "status": 200
  }
 }
