@@ -4,7 +4,7 @@ All notable changes to aiohikvision. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the API.
 
-## [0.1.6] - Unreleased
+## [0.1.6] - 2026-11-26
 
 ### Added
 
