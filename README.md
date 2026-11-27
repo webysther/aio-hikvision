@@ -1,18 +1,26 @@
 # aiohikvision
 
-Asyncio library for Hikvision devices: ISAPI (cameras, recorders, door stations)
-and the SIP calls of video door stations. It is fully typed and has no Home
-Assistant dependency; its main user is
-[Hikvision Virtual Indoor Station](https://github.com/webysther/ha-hikvision-virtual-indoor-station),
-which makes Home Assistant the indoor station of a door station.
+**English** · [中文](https://github.com/webysther/aio-hikvision/blob/main/README.zh-CN.md) · [Español](https://github.com/webysther/aio-hikvision/blob/main/README.es.md) · [Português](https://github.com/webysther/aio-hikvision/blob/main/README.pt-BR.md) · [Français](https://github.com/webysther/aio-hikvision/blob/main/README.fr.md) · [العربية](https://github.com/webysther/aio-hikvision/blob/main/README.ar.md) · [Русский](https://github.com/webysther/aio-hikvision/blob/main/README.ru.md) · [Deutsch](https://github.com/webysther/aio-hikvision/blob/main/README.de.md) · [Italiano](https://github.com/webysther/aio-hikvision/blob/main/README.it.md)
+
+Asyncio library for Hikvision devices: cameras, recorders and door stations over
+ISAPI, and the SIP calls of video door stations. It is fully typed, has no Home
+Assistant dependency, and installs only the parts you use. It aims to be the one
+library the Hikvision projects of Home Assistant need; its first user is
+[Hikvision Virtual Indoor Station](https://github.com/webysther/ha-hikvision-virtual-indoor-station).
+
+Every device it has met works because someone sent its report. Yours can be next:
+the steps below take five minutes.
+
+## Your device, step by step
+
+### 1. Install
 
 ```sh
-pip install "aiohikvision[isapi]"      # cameras, recorders and door stations over ISAPI
-pip install "aiohikvision[isapi,sip]"  # and the SIP calls of door stations
+pip install "aiohikvision[isapi]"
 ```
 
-Python 3.13 or newer. Install only the parts you use: the default install has no
-dependency, and each part is an extra.
+Python 3.13 or newer. Each part of the library is an extra, and the default install
+has no dependency:
 
 | Extra | Installs | For |
 |---|---|---|
@@ -25,10 +33,10 @@ dependency, and each part is an extra.
 
 A part used without its extra raises `MissingExtra`, which says what to install.
 
-## Any device, over ISAPI
+### 2. Meet your device
 
-`HikvisionClient` connects to a camera, a recorder or a door station and reads,
-once, who it is, what it can do and how it behaves:
+`HikvisionClient(session).connect(...)` reads, once and with GET only, who the
+device is, what it can do and how it behaves. Nothing on the device changes.
 
 ```python
 import asyncio
@@ -62,8 +70,66 @@ Talk packets: 40ms
 ```
 
 Give it the `aiohttp` session of your application with `HikvisionClient(session)`.
+`device.streaming` lists its streams (`await device.streaming.streams()`), takes a
+picture (`snapshot()`) and gives the RTSP address of each (`rtsp_url()`).
 
-### How devices differ
+### 3. Make its report
+
+The report is everything the library reads of the device and what it makes of it:
+its documents, **anonymized** (no account, address, serial, MAC or name you gave),
+the domains it shows and how the library covers each, the behaviours it uses and why,
+and what it did not recognise. From a terminal:
+
+```sh
+export AIOHIKVISION_PASSWORD='the password'   # or leave it out to be asked
+python -m aiohikvision report 192.0.2.10 --username admin
+```
+
+```text
+DS-KD8003-IME1(B) V3.7.3 build 260915 (VIS)
+Domains: streaming (service), events (door_station), io (door_station), video_intercom (door_station), access_control (door_station), two_way_audio (door_station)
+  talk_packet: 40ms (rule)
+  alert_stream: multipart (default)
+  call_status: advertised (default)
+  triggers: event_triggers (default)
+Report written to aiohikvision-report-DS-KD8003-IME1-B.json: read it, then attach it to https://github.com/webysther/aio-hikvision/issues/new?template=device_report.yml
+```
+
+The lines with `!` are what the library is missing for your device: values it does
+not recognise, documents that failed, or no rule for your model and firmware. In
+your own code, `await device.report()` returns the same report (`report.to_json()`).
+
+### 4. Send it
+
+Read the file first: it should hold nothing of your home, and you can remove anything
+you would rather not share. Then
+[open a device report](https://github.com/webysther/aio-hikvision/issues/new?template=device_report.yml),
+attach it, and say what works and what does not. A report becomes a fixture of the
+tests, a rule for your model and firmware, and the services your device needs: the
+library improves the same way for every device.
+
+### 5. When something goes wrong
+
+The debug log of the library is short and says what matters, once:
+
+```python
+import logging
+
+logging.basicConfig()
+logging.getLogger("aiohikvision").setLevel(logging.DEBUG)
+```
+
+- how the device was recognised: its model and firmware, the domains it shows and
+  how each is covered, the behaviours that are not the defaults and the rule that
+  set them;
+- its streams, when they are first read and when they change;
+- each request that fails, the first time, and when it answers again; no line for
+  the requests that work.
+
+Attach that log to the issue with the report. In Home Assistant, turn on **Enable
+debug logging** of the integration: the library's log comes with it.
+
+## How devices differ
 
 Devices differ by model, and by firmware of the same model: a DS-KD8003 plays the
 sound of a call slowly unless each RTP packet carries 40 ms. Each such difference is a
@@ -137,10 +203,10 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-It also takes a snapshot (`snapshot()`), gives the RTSP address of the stream with
-its sound (`rtsp_url()`), checks that the device answers (`check()`), and plays
-G.711 through the speaker outside a call (`talk()`, a `TwoWayAudio`: one talk at a
-time, a new one takes the speaker over).
+It also checks that the device answers (`check()`), and plays G.711 through the
+speaker outside a call (`talk()`, a `TwoWayAudio`: one talk at a time, a new one
+takes the speaker over). Its picture and streams are those of any device:
+`(await Device.from_link(door.link)).streaming`, on the same link.
 
 ## Its calls, over SIP
 

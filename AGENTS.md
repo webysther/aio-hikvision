@@ -42,10 +42,15 @@ From the simplest to the rawest:
 ```text
 src/aiohikvision/
   client.py      HikvisionClient(session, rules=, overrides=): connect() → Device  [isapi]
-  device.py      Device: identity, capabilities and behaviours, read once; its services
-  services/      one class per domain of ISAPI (system.py System), I/O only     [isapi]
+  device.py      Device: identity, capabilities and behaviours, read once; its services;
+                 summary() (the debug record of how it was recognised)
+  report.py      the report of a device (GET only, anonymized, what is missing);
+                 __main__.py: python -m aiohikvision report <address>          [isapi]
+  services/      one class per domain of ISAPI (system.py System, streaming.py
+                 Streaming), I/O only                                          [isapi]
   parsers/       the documents of a domain as models, without I/O              [isapi]
   models/        frozen models: identity.py Identity, firmware.py Firmware,
+                 streaming.py Stream, StreamId, VideoFormat,
                  capabilities.py Capabilities (Domain, Support), _coded.py
                  CodedEnum (every value has a numeric code that never changes)
   behaviours/    how devices differ: Behaviours (one named enum per quirk);
@@ -170,6 +175,14 @@ measured when it moved (77%), while the library's own code stays at 100%.
   its settings from environment variables (never an address in the text). Run each
   one before changing it, against the doubles of `tests/fakes` or, with the
   maintainer's approval, a real device.
+- `README.<language>.md` (zh-CN, es, pt-BR, fr, ar, ru, de, it, chosen by where
+  Hikvision sells and where Home Assistant is used) translate the introduction and
+  "Your device, step by step", and link to the English README for the rest: change
+  them with it, section by section. The line of languages on top links them all.
+- The debug log is lean: a record says something once (how a device was recognised,
+  the streams when they change, a request when it starts failing and when it answers
+  again); a request that works logs nothing. Keep it so: whoever sends a log should
+  send everything needed to fix or extend, and nothing more.
 - `docs/DEVICE_FINDINGS.md` holds what was measured on a real door station, with the
   firmware and the date; add what you measure to it. `docs/ADR-*.md` hold the
   decisions and why.

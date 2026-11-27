@@ -8,11 +8,14 @@ from yarl import URL
 
 from aiohikvision.isapi.model.features.health import read_session_count
 from aiohikvision.isapi.wire.faults import DeviceRejected
+from aiohikvision.isapi.wire.scrub import scrubbed_logger
 from aiohikvision.models.streaming import Stream, StreamId
 from aiohikvision.parsers.streaming import STREAMING_CHANNELS, parse_rtsp_port, parse_streams
 
 if TYPE_CHECKING:
     from aiohikvision.isapi.wire.link import IsapiLink
+
+_LOGGER = scrubbed_logger(__name__)
 
 MAIN: Final = StreamId(1, 1)
 """The main stream of the first channel: the camera of a door station, or of a camera."""
@@ -31,10 +34,18 @@ class Streaming:
         """Talk to the device through its link."""
         self.link = link
         self._rtsp_port: int | None = None
+        self._described: tuple[Stream, ...] | None = None
 
     async def streams(self) -> tuple[Stream, ...]:
         """Return the enabled streams of every channel, in order of id."""
-        return parse_streams(await self.link.read_xml(STREAMING_CHANNELS, optional=True))
+        streams = parse_streams(await self.link.read_xml(STREAMING_CHANNELS, optional=True))
+        if streams != self._described:
+            # Logged when the list changes: the first time, and after a change on the device
+            self._described = streams
+            _LOGGER.debug(
+                "Streams of %s: %s", self.link.endpoint.host, "; ".join(map(describe, streams)) or "none"
+            )
+        return streams
 
     async def stream(self, stream: StreamId | str) -> Stream | None:
         """Return one stream; None when it is off or the device does not describe it."""
@@ -88,3 +99,21 @@ class Streaming:
 
 def _id(stream: StreamId | str) -> StreamId:
     return stream if isinstance(stream, StreamId) else StreamId.parse(stream)
+
+
+def describe(stream: Stream) -> str:
+    """Return a stream in a few words, for a log: "101 h264 1920x1080 30fps key 2s 4096kbps g711_ulaw"."""
+    parts = [stream.id.isapi]
+    video = stream.video
+    if video is not None:
+        parts.append(str(video.codec))
+        if video.width and video.height:
+            parts.append(f"{video.width}x{video.height}")
+        if video.fps:
+            parts.append(f"{video.fps:g}fps")
+        if video.gop_seconds:
+            parts.append(f"key {video.gop_seconds:g}s")
+        if video.bitrate_kbps:
+            parts.append(f"{video.bitrate_kbps}kbps")
+    parts.append(str(stream.audio) if stream.audio else "no sound")
+    return " ".join(parts)

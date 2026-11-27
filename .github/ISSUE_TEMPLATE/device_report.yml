@@ -1,0 +1,46 @@
+name: Device report
+description: Send the report of your Hikvision device, so aiohikvision supports it better
+title: "Device report: <model> <firmware>"
+labels: ["device report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! Make the report with `python -m aiohikvision report <address>` (it reads,
+        never writes), or `await device.report()` in your code. It is anonymized: no account,
+        address, serial, MAC or name you gave. Read it before you attach it.
+  - type: input
+    id: model
+    attributes:
+      label: Model and firmware
+      description: The first line the command printed
+      placeholder: DS-KD8003-IME1(B) V3.7.3 build 260915 (VIS)
+    validations:
+      required: true
+  - type: textarea
+    id: works
+    attributes:
+      label: What works, and what does not
+      description: What you use the device for, what aiohikvision does well with it, and what fails or is missing
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: The report
+      description: Attach the JSON file the command wrote (drag it here), or paste it
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Debug log (optional)
+      description: The debug log of `aiohikvision` while it fails, if something fails
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I read the report and the log, and they hold nothing I would rather not share
+          required: true

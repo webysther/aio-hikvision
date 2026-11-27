@@ -26,6 +26,22 @@ The parts it replaces leave as their replacement comes, without shims.
   specific winning. `KNOWN_RULES` holds those seen on real devices, with where;
   `HikvisionClient(rules=..., overrides=...)` adds yours, and `device.resolved.decisions`
   says what decided each one.
+- **The streams of a device** (`device.streaming`, `Streaming`): each stream with its
+  codec, size, frame rate, key-frame interval (`gop_seconds`), bitrate and sound
+  (`Stream`, `StreamId`, `VideoFormat`); a picture of any stream (`snapshot()`, at a
+  size if asked, refused when the device answers no JPEG); the RTSP address of each,
+  on the port the device says (`rtsp_url()`); the open video sessions (`sessions()`).
+- **The report of a device** (`await device.report()`, or `python -m aiohikvision report
+  <address>` from a terminal): its documents read with GET only and anonymized
+  (`isapi.wire.anonymize.Anonymizer`: no account, address, serial, MAC or name given by
+  people; addresses replaced by documentation ones), the domains it shows and how the
+  library covers each, its behaviours and what decided them, and what the library did
+  not recognise or failed to read. A path of `report.NEVER_READ` (GETs that act or hand
+  out secrets) is never asked. The README says how to send it, with an issue form.
+- **A lean debug log** (`aiohikvision`): how a device was recognised (model, firmware,
+  domains and their coverage, the behaviours set by a rule and where it was seen) in one
+  record when it connects; its streams when first read and when they change; each
+  request that fails, once, and again when it answers. Requests that work log nothing.
 - `Firmware`: the version and build of a device as numbers (`firmware.parts`,
   `firmware.build`); `str(firmware)` is what the device wrote.
 - `Identity.device_id`: the `deviceID` the device reports, as it is.
@@ -50,6 +66,9 @@ The parts it replaces leave as their replacement comes, without shims.
 
 - `isapi.model.discover.read_identity` and `read_identity_only`: `Device.identity`, or
   `services.system.System(link).identity()`.
+- `DoorStation.snapshot()`, `DoorStation.rtsp_url()`, `DoorStationInfo.stream` and
+  `DoorStationInfo.rtsp_port`, and `isapi.door_station.rtsp_port()`: `device.streaming`
+  (`Device.from_link(door.link)` shares the door station's link).
 
 ## [0.1.7] - 2026-11-27
 

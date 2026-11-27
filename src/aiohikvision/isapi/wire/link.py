@@ -32,6 +32,7 @@ from aiohikvision.isapi.wire.faults import (
     Unreachable,
     Unsupported,
     classify,
+    detail,
     is_lock,
     read_status,
 )
@@ -203,6 +204,8 @@ class IsapiLink:
         self._write_timeout = aiohttp.ClientTimeout(total=write_timeout, connect=connect_timeout)
         self._connect_timeout = connect_timeout
         self.unsupported: set[str] = set()
+        # The requests failing now, each logged once (see _note_failure)
+        self._failing: set[str] = set()
         # Paths that answered a GET once: a later refusal there is a hiccup, not "unsupported".
         self.served: set[str] = set()
         self.stats = LinkStats()
@@ -372,11 +375,38 @@ class IsapiLink:
         writing = method != "GET"
         timeout = self._write_timeout if writing else self._read_timeout
 
-        async with self._gate:
-            if writing:
-                async with self._write_lock:
-                    return await self._authorized(method, path, payload, content_type, timeout)
-            return await self._authorized(method, path, payload, content_type, timeout)
+        try:
+            async with self._gate:
+                if writing:
+                    async with self._write_lock:
+                        reply = await self._authorized(method, path, payload, content_type, timeout)
+                else:
+                    reply = await self._authorized(method, path, payload, content_type, timeout)
+        except HikvisionError as err:
+            self._note_failure(method, path, err)
+            raise
+        self._note_answer(method, path)
+        return reply
+
+    def _note_failure(self, method: str, path: str, err: HikvisionError) -> None:
+        """Log the first failure of a request, once until it answers again: a lean debug log.
+
+        Refused logins and lockouts are warned about where they are decided.
+        """
+        key = f"{method} {path.split('?', maxsplit=1)[0]}"
+        if isinstance(err, BadCredentials | LockedOut) or key in self._failing:
+            return
+        self._failing.add(key)
+        _LOGGER.debug(
+            "%s on %s: %s (said once, until it answers again)", key, self.endpoint.host, detail(err)
+        )
+
+    def _note_answer(self, method: str, path: str) -> None:
+        """Log a request that answers again after failing."""
+        key = f"{method} {path.split('?', maxsplit=1)[0]}"
+        if key in self._failing:
+            self._failing.discard(key)
+            _LOGGER.debug("%s on %s answers again", key, self.endpoint.host)
 
     async def _authorized(
         self,

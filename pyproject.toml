@@ -103,6 +103,7 @@ runtime-evaluated-decorators = ["dataclasses.dataclass"]
 "scripts/sip_probe.py" = ["ALL"]
 "scripts/assets/**" = ["ALL"]
 "scripts/door_server.py" = ["INP001"] # a script, not a package
+"src/aiohikvision/__main__.py" = ["T201"] # a command of the terminal prints
 # Inherited from Hikvision Bridge (aiohikvision.isapi and its fake device): checked by mypy
 # --strict and the formatter already; these rules are to be tightened one at a time
 "src/aiohikvision/{isapi/**,auth/digest.py}" = [
@@ -163,4 +164,4 @@ skip_covered = false
 # 95 for the library's own code; aiohikvision.isapi came with only part of its tests (the rest
 # exercise it through the integration), so the floor is the total measured when it moved
 fail_under = 77
-exclude_also = ["if TYPE_CHECKING:", "\\.\\.\\."]
+exclude_also = ["if TYPE_CHECKING:", "\\.\\.\\.", "if __name__ == .__main__.:"]

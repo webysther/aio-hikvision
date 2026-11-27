@@ -213,3 +213,11 @@ def test_stream_ids() -> None:
     for text in ("1", "1a1", ""):
         with pytest.raises(ValueError, match="stream id"):
             StreamId.parse(text)
+
+
+def test_a_stream_in_a_few_words() -> None:
+    """A stream the device describes little is told with what is known."""
+    from aiohikvision.services.streaming import describe  # noqa: PLC0415  # only this test
+
+    assert describe(Stream(StreamId(1, 3))) == "103 no sound"
+    assert describe(Stream(StreamId(1, 1), video=VideoFormat(VideoCodec.MJPEG))) == "101 mjpeg no sound"
