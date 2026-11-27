@@ -13,7 +13,8 @@ from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
-from aiohikvision.isapi.wire.faults import BadCredentials, BridgeFault, LockedOut, Unsupported, detail
+from aiohikvision.errors import HikvisionError
+from aiohikvision.isapi.wire.faults import BadCredentials, LockedOut, Unsupported, detail
 from aiohikvision.isapi.wire.link import IsapiLink
 from aiohikvision.isapi.wire.scrub import scrubbed_logger
 from aiohikvision.isapi.wire.xmlview import XmlError, XmlNode, decode, parse
@@ -447,7 +448,7 @@ def boundary_of(content_type: str) -> str | None:
 
 
 FrameHandler = Callable[[FeedFrame], None]
-StateHandler = Callable[[bool, BridgeFault | None], Awaitable[None] | None]
+StateHandler = Callable[[bool, HikvisionError | None], Awaitable[None] | None]
 
 
 @dataclass(slots=True)
@@ -478,7 +479,7 @@ async def stream_missing(link: IsapiLink, path: str = STREAM_PATH) -> bool:
         raise
     except Unsupported as err:
         return str(err).startswith("HTTP 404")
-    except (BridgeFault, TimeoutError):
+    except (HikvisionError, TimeoutError):
         return False
 
 
@@ -641,7 +642,7 @@ class AlarmFeed:
                 await task
         await self._set_state(False, None)
 
-    async def _set_state(self, connected: bool, fault: BridgeFault | None) -> None:
+    async def _set_state(self, connected: bool, fault: HikvisionError | None) -> None:
         if connected == self._connected and fault is None:
             return
         self._connected = connected
@@ -660,7 +661,7 @@ class AlarmFeed:
                 self.stats.last_error = type(err).__name__
                 await self._set_state(False, err)
                 return
-            except BridgeFault as err:
+            except HikvisionError as err:
                 delay = reconnects.after_failure()
                 self.stats.last_error = type(err).__name__
                 _LOGGER.debug(

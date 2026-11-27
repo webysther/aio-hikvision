@@ -66,6 +66,6 @@ async def test_link_that_proved_digest_never_sends_basic(rig, monkeypatch) -> No
     device.accept_digest = False
     device.challenge = 'Basic realm="r"'
     for _ in range(3):
-        with pytest.raises(faults.BridgeFault):
+        with pytest.raises(faults.HikvisionError):
             await link.call("GET", "/ISAPI/System/deviceInfo")
     assert not any(h.startswith("Basic") for h in device.seen)

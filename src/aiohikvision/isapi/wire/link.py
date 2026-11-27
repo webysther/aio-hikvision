@@ -16,10 +16,11 @@ import aiohttp
 from aiohttp.http_exceptions import BadStatusLine
 from yarl import URL
 
+from aiohikvision.auth.digest import DigestSigner, Signer, build_signer, parse_challenges, pick
+from aiohikvision.errors import HikvisionError
 from aiohikvision.isapi.wire.faults import (
     AuthHiccup,
     BadCredentials,
-    BridgeFault,
     DeviceRejected,
     DeviceStatus,
     Forbidden,
@@ -35,7 +36,6 @@ from aiohikvision.isapi.wire.faults import (
     read_status,
 )
 from aiohikvision.isapi.wire.scrub import LOG_SCRUBBER, scrubbed_logger
-from aiohikvision.isapi.wire.signer import DigestSigner, Signer, build_signer, parse_challenges, pick
 from aiohikvision.isapi.wire.xmlview import XmlError, XmlNode, decode, parse
 
 _LOGGER = scrubbed_logger(__name__)
@@ -56,7 +56,7 @@ LOGIN_ATTEMPTS_KEPT = 2
 LOCK_FALLBACK = 1800.0
 
 
-def _unparsable(err: aiohttp.ClientResponseError) -> BridgeFault:
+def _unparsable(err: aiohttp.ClientResponseError) -> HikvisionError:
     """A reply aiohttp could not parse; only a bad status line is the device refusing.
 
     Old firmwares answer what they do not support with ``HTTP/1.1 -1 Custom error``. Other
@@ -190,7 +190,7 @@ class IsapiLink:
         # Scheme of the first accepted signature; a later challenge may not weaken it.
         self._pinned: str | None = None
         self._auth_checked = False
-        self._blocked: BridgeFault | None = None
+        self._blocked: HikvisionError | None = None
         # Monotonic time a lockout lifts (None: the block is permanent, like bad credentials).
         self._blocked_until: float | None = None
         self._worked = trusted
@@ -211,9 +211,14 @@ class IsapiLink:
     # ----------------------------------------------------------------- state
 
     @property
-    def blocked(self) -> BridgeFault | None:
+    def blocked(self) -> HikvisionError | None:
         """The fault that stopped all traffic (bad credentials, lockout), if any."""
         return self._blocked
+
+    @property
+    def credentials(self) -> tuple[str, str]:
+        """The account of the link: for the RTSP address of the same device."""
+        return self._username, self._password
 
     @property
     def auth_scheme(self) -> str | None:
@@ -361,7 +366,7 @@ class IsapiLink:
         body: bytes | str | None = None,
         content_type: str = "application/xml; charset=UTF-8",
     ) -> Reply:
-        """Send one request, handling digest nonce refresh. Raises a BridgeFault on errors."""
+        """Send one request, handling digest nonce refresh. Raises a HikvisionError on errors."""
         self._raise_if_blocked()
         payload = body.encode("utf-8") if isinstance(body, str) else body
         writing = method != "GET"
@@ -397,7 +402,7 @@ class IsapiLink:
                 headers["Authorization"] = self._signer.authorization(method, path)
             try:
                 status, ctype, challenges, data = await self._raw(method, path, headers, payload, limits)
-            except BridgeFault as err:
+            except HikvisionError as err:
                 self.stats.failures += 1
                 self.stats.last_error = type(err).__name__
                 raise
@@ -439,7 +444,7 @@ class IsapiLink:
         challenges: list[str],
         data: bytes,
         signed: tuple[int, bool] | None,
-    ) -> BridgeFault | None:
+    ) -> HikvisionError | None:
         """Decide after a 401: None means one more attempt is safe, else the fault to raise."""
         status = read_status(decode(data))
         if is_lock(status):

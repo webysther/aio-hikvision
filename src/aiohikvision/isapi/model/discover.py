@@ -15,42 +15,18 @@ from aiohikvision.isapi.model.inventory import (
     CloudLinkState,
     DeviceProfile,
     DeviceShape,
-    Identity,
     StreamSpec,
 )
 from aiohikvision.isapi.model.vocabulary import SWITCHABLE, Kind, canonical
-from aiohikvision.isapi.wire.faults import NotIsapi
 from aiohikvision.isapi.wire.link import IsapiLink
 from aiohikvision.isapi.wire.scrub import scrubbed_logger
 from aiohikvision.isapi.wire.xmlview import XmlNode
+from aiohikvision.models.identity import Identity
+from aiohikvision.services.system import System
 
 _LOGGER = scrubbed_logger(__name__)
 
 _RECORDER_TYPES = {"nvr", "dvr", "hvr", "dvs", "hybridnvr", "netvideorecorder"}
-
-
-def read_identity(info: XmlNode) -> Identity:
-    firmware = info.text("firmwareVersion") or "unknown"
-    serial = info.text("serialNumber") or ""
-    if not serial and not info.text("macAddress"):
-        raise NotIsapi("device reports neither serial number nor MAC address")
-    return Identity(
-        serial=serial,
-        model=info.text("model") or "Hikvision device",
-        name=info.text("deviceName") or info.text("model") or "Hikvision",
-        firmware=firmware,
-        firmware_build=info.text("firmwareReleasedDate"),
-        mac=info.text("macAddress"),
-        device_type=info.text("deviceType"),
-        hardware=info.text("hardwareVersion"),
-    )
-
-
-async def read_identity_only(link: IsapiLink) -> Identity:
-    info = await link.read_xml("/ISAPI/System/deviceInfo")
-    if info is None:
-        raise NotIsapi("no device information")
-    return read_identity(info)
 
 
 def _proxy_channels(listing: XmlNode | None, status: XmlNode | None) -> dict[str, ChannelProfile]:
@@ -176,7 +152,7 @@ def read_cloud_state(cloud: XmlNode | None) -> CloudLinkState | None:
 
 async def discover(link: IsapiLink, *, probe_switches: bool = True) -> DeviceProfile:
     """Collect everything needed to build entities. Only GET requests are sent."""
-    identity = await read_identity_only(link)
+    identity = await System(link).identity()
 
     (
         proxy_list,

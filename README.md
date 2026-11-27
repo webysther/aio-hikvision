@@ -7,10 +7,103 @@ Assistant dependency; its main user is
 which makes Home Assistant the indoor station of a door station.
 
 ```sh
-pip install aiohikvision
+pip install "aiohikvision[isapi]"      # cameras, recorders and door stations over ISAPI
+pip install "aiohikvision[isapi,sip]"  # and the SIP calls of door stations
 ```
 
-Python 3.13 or newer.
+Python 3.13 or newer. Install only the parts you use: the default install has no
+dependency, and each part is an extra.
+
+| Extra | Installs | For |
+|---|---|---|
+| (none) | nothing | the models, how devices differ (`behaviours`), the errors |
+| `isapi` | aiohttp, yarl, defusedxml | `HikvisionClient`, `Device`, `DoorStation`: the HTTP API of the devices |
+| `rtp` | nothing yet | RTP: the microphone to a door during a call |
+| `sip` | `[rtp]`, aiosipua | the SIP calls of door stations |
+| `scrambling` | `[isapi]`, cryptography | encrypted program streams of recordings |
+| `all` | everything | |
+
+A part used without its extra raises `MissingExtra`, which says what to install.
+
+## Any device, over ISAPI
+
+`HikvisionClient` connects to a camera, a recorder or a door station and reads,
+once, who it is, what it can do and how it behaves:
+
+```python
+import asyncio
+import os
+
+from aiohikvision import HikvisionClient
+
+
+async def main() -> None:
+    async with HikvisionClient() as client:
+        device = await client.connect(
+            os.environ["DEVICE_HOST"],
+            os.environ["DEVICE_USERNAME"],
+            os.environ["DEVICE_PASSWORD"],
+            port=int(os.environ.get("DEVICE_PORT", "80")),
+        )
+        print(device.identity.model, device.identity.firmware)
+        print("Domains:", ", ".join(device.capabilities.domains))
+        print("Talk packets:", device.behaviours.talk_packet)
+
+
+asyncio.run(main())
+```
+
+On a DS-KD8003 door station it prints:
+
+```text
+DS-KD8003-IME1(B) V3.7.3 build 260915
+Domains: streaming, events, io, video_intercom, access_control, two_way_audio
+Talk packets: 40ms
+```
+
+Give it the `aiohttp` session of your application with `HikvisionClient(session)`.
+
+### How devices differ
+
+Devices differ by model, and by firmware of the same model: a DS-KD8003 plays the
+sound of a call slowly unless each RTP packet carries 40 ms. Each such difference is a
+behaviour (`device.behaviours`), set from the model and the firmware by rules
+(`KNOWN_RULES`, each saying where it was seen), the most specific winning. A device the
+library does not know yet takes your rules, or overrides that win over every rule:
+
+```python
+import asyncio
+import os
+
+from aiohikvision import BehaviourPatch, HikvisionClient, Match, PacketTime, Rule, VersionRange
+
+# A door station measured to need 40 ms packets on its 2.2 firmware
+RULES = [
+    Rule(
+        Match(model="DS-KD9403*", firmware=VersionRange.parse(">=2.2,<2.3")),
+        BehaviourPatch(talk_packet=PacketTime.MS_40),
+    )
+]
+
+
+async def main() -> None:
+    async with HikvisionClient(rules=RULES) as client:
+        device = await client.connect(
+            os.environ["DEVICE_HOST"],
+            os.environ["DEVICE_USERNAME"],
+            os.environ["DEVICE_PASSWORD"],
+            port=int(os.environ.get("DEVICE_PORT", "80")),
+        )
+        decision = device.resolved.decisions["talk_packet"]
+        print(device.behaviours.talk_packet, "decided by", decision.source)
+
+
+asyncio.run(main())
+```
+
+On a DS-KD8003 it prints `40ms decided by rule`. `device.resolved.decisions` says what
+decided each behaviour: the default, a rule (`decision.rule`, with where it was seen),
+or your override (`HikvisionClient(overrides=BehaviourPatch(...))`).
 
 ## A door station, over ISAPI
 

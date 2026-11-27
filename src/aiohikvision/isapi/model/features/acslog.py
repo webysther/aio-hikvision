@@ -13,7 +13,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from aiohikvision.isapi.wire.faults import BridgeFault, DeviceRejected, Forbidden, NotIsapi, Unsupported
+from aiohikvision.errors import HikvisionError
+from aiohikvision.isapi.wire.faults import DeviceRejected, Forbidden, NotIsapi, Unsupported
 from aiohikvision.isapi.wire.feed import FeedFrame
 from aiohikvision.isapi.wire.link import IsapiLink
 
@@ -179,7 +180,7 @@ class AccessLog:
         return sorted(found, key=_order)
 
     async def poll(self) -> list[FeedFrame]:
-        """New entries since the last poll. Raises BridgeFault; Unsupported on the first poll
+        """New entries since the last poll. Raises HikvisionError; Unsupported on the first poll
         means the device has no access event log.
         """
         self.stats.polls += 1
@@ -192,7 +193,7 @@ class AccessLog:
                 self.supported = False
                 raise Unsupported("no access event log") from err
             raise
-        except BridgeFault as err:
+        except HikvisionError as err:
             self.stats.failures += 1
             self.stats.last_error = type(err).__name__
             raise

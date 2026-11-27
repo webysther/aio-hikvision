@@ -16,8 +16,8 @@ from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
 
+from aiohikvision.errors import HikvisionError
 from aiohikvision.isapi.model.ids import seg
-from aiohikvision.isapi.wire.faults import BridgeFault
 from aiohikvision.isapi.wire.link import IsapiLink, Upload
 from aiohikvision.isapi.wire.scrub import scrubbed_logger
 from aiohikvision.isapi.wire.xmlview import XmlError, XmlNode
@@ -120,7 +120,7 @@ class TwoWayAudio:
     async def open(self) -> None:
         """Close what a previous session may have left open, open the channel, then the body."""
         path = self.channel.path
-        with suppress(BridgeFault):
+        with suppress(HikvisionError):
             await self.link.call("PUT", f"{path}/close")
         try:
             reply = await self.link.call("PUT", f"{path}/open")
@@ -130,9 +130,9 @@ class TwoWayAudio:
                     session = session_id(reply.xml())
             data_path = f"{path}/audioData" + (f"?sessionId={session}" if session else "")
             self._upload = await self.link.open_upload(data_path)
-        except BridgeFault as err:
+        except HikvisionError as err:
             _LOGGER.debug("Two-way audio did not open on %s: %r", self.link.endpoint.host, err)
-            with suppress(BridgeFault):
+            with suppress(HikvisionError):
                 await self.link.call("PUT", f"{path}/close")
             raise TalkError("talk_failed") from err
         self._watch = asyncio.get_running_loop().create_task(self._watch_device())
@@ -164,7 +164,7 @@ class TwoWayAudio:
             self._upload.close()
         if self._watch is not None and self._watch is not asyncio.current_task():
             self._watch.cancel()
-        with suppress(BridgeFault):
+        with suppress(HikvisionError):
             await self.link.call("PUT", f"{self.channel.path}/close")
         _LOGGER.debug(
             "Two-way audio on %s ended (%s): %d bytes sent, %d dropped",

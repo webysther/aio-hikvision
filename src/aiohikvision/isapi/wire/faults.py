@@ -6,14 +6,10 @@ import json
 import re
 from dataclasses import dataclass
 
-
-class BridgeFault(Exception):
-    """Base for every error raised by the transport layer."""
-
-    translation_key = "unknown"
+from aiohikvision.errors import HikvisionError
 
 
-class Unreachable(BridgeFault):
+class Unreachable(HikvisionError):
     """No TCP/TLS connection or no answer in time."""
 
     translation_key = "unreachable"
@@ -35,13 +31,13 @@ class AuthHiccup(Unreachable):
     """A request was refused although these credentials worked before; tried again later."""
 
 
-class NotIsapi(BridgeFault):
+class NotIsapi(HikvisionError):
     """Something answered, but it is not an ISAPI device."""
 
     translation_key = "not_isapi"
 
 
-class InsecureAuth(BridgeFault):
+class InsecureAuth(HikvisionError):
     """The device asks for an authentication that would expose the password.
 
     Basic over plain HTTP sends the password readable to everyone on the path, and a
@@ -51,7 +47,7 @@ class InsecureAuth(BridgeFault):
     translation_key = "insecure_auth"
 
 
-class BadCredentials(BridgeFault):
+class BadCredentials(HikvisionError):
     """The device rejected the credentials after a fresh challenge.
 
     ``retries_left`` is how many failed logins the device still allows before it locks the
@@ -65,7 +61,7 @@ class BadCredentials(BridgeFault):
         self.retries_left = retries_left
 
 
-class LockedOut(BridgeFault):
+class LockedOut(HikvisionError):
     """The device locked the account or our IP address."""
 
     translation_key = "locked_out"
@@ -75,19 +71,19 @@ class LockedOut(BridgeFault):
         self.retry_after = retry_after
 
 
-class Forbidden(BridgeFault):
+class Forbidden(HikvisionError):
     """The account lacks a privilege for this resource."""
 
     translation_key = "forbidden"
 
 
-class Unsupported(BridgeFault):
+class Unsupported(HikvisionError):
     """The resource does not exist on this device or firmware."""
 
     translation_key = "unsupported"
 
 
-class DeviceRejected(BridgeFault):
+class DeviceRejected(HikvisionError):
     """The device understood the request but refused it (bad parameters, busy, conflict)."""
 
     translation_key = "device_rejected"
@@ -191,7 +187,7 @@ def is_lock(status: DeviceStatus) -> bool:
     return status.retries_left == 0 and status.unlock_seconds not in (None, 0)
 
 
-def classify(http_status: int, body: str) -> BridgeFault | None:
+def classify(http_status: int, body: str) -> HikvisionError | None:
     """Map a non-success response (other than 401) to a fault, or None for success."""
     if 200 <= http_status < 300:
         status = read_status(body) if body else DeviceStatus()
@@ -207,7 +203,7 @@ def classify(http_status: int, body: str) -> BridgeFault | None:
     return _from_sub_status(http_status, status)
 
 
-def _from_sub_status(http_status: int, status: DeviceStatus) -> BridgeFault:
+def _from_sub_status(http_status: int, status: DeviceStatus) -> HikvisionError:
     sub = (status.sub_status or "").lower()
     if is_lock(status):
         return LockedOut(sub or "locked", status.unlock_seconds)
@@ -219,5 +215,8 @@ def _from_sub_status(http_status: int, status: DeviceStatus) -> BridgeFault:
         return Forbidden("HTTP 403")
     if http_status == 503 and sub in {"serviceunavailable", ""}:
         return Unsupported("serviceUnavailable")
+    if http_status == 501 and not sub:
+        # "Not implemented" with nothing more: the firmware has no such resource
+        return Unsupported("HTTP 501")
     message = status.error_message or status.status_string or f"HTTP {http_status}"
     return DeviceRejected(message, http_status, status.sub_status)

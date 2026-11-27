@@ -3,17 +3,17 @@
 import hashlib
 import logging
 
+from aiohikvision.auth.digest import (
+    DigestSigner,
+    parse_challenges,
+    pick,
+)
 from aiohikvision.isapi.wire import faults
 from aiohikvision.isapi.wire.scrub import (
     MASK,
     ScrubbingFilter,
     scrub_text,
     scrub_url,
-)
-from aiohikvision.isapi.wire.signer import (
-    DigestSigner,
-    parse_challenges,
-    pick,
 )
 
 
@@ -59,6 +59,11 @@ def test_classify_variants() -> None:
     low = "<ResponseStatus><subStatusCode>lowPrivilege</subStatusCode></ResponseStatus>"
     assert isinstance(faults.classify(403, low), faults.Forbidden)
     assert isinstance(faults.classify(404, ""), faults.Unsupported)
+    # "Not implemented" with nothing more: the firmware has no such resource
+    assert isinstance(faults.classify(501, ""), faults.Unsupported)
+    assert isinstance(
+        faults.classify(501, "<x><subStatusCode>badParameters</subStatusCode></x>"), faults.DeviceRejected
+    )
     assert isinstance(
         faults.classify(503, "<x><subStatusCode>serviceUnavailable</subStatusCode></x>"),
         faults.Unsupported,

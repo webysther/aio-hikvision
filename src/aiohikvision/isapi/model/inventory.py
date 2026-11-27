@@ -7,6 +7,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from aiohikvision.isapi.model.vocabulary import Kind
+from aiohikvision.models.identity import Identity
 
 if TYPE_CHECKING:
     from .features.image import ImageCapability
@@ -32,23 +33,6 @@ class DeviceShape(StrEnum):
 class ChannelSource(StrEnum):
     LOCAL = "local"  # the device's own sensor or analog input
     PROXY = "proxy"  # an IP camera attached to a recorder
-
-
-@dataclass(slots=True)
-class Identity:
-    serial: str
-    model: str
-    name: str
-    firmware: str
-    firmware_build: str | None = None
-    mac: str | None = None
-    device_type: str | None = None
-    hardware: str | None = None
-
-    @property
-    def stable_id(self) -> str:
-        """Serial without separators, used for device and entity identifiers."""
-        return "".join(ch for ch in (self.serial or self.mac or "") if ch.isalnum()).lower()
 
 
 @dataclass(slots=True)

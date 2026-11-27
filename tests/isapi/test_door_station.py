@@ -8,12 +8,13 @@ from typing import TYPE_CHECKING
 import aiohttp
 import pytest
 
-from aiohikvision.isapi.door_station import DoorStation, DoorStationInfo, NotADoorStation, NotALock, rtsp_port
+from aiohikvision.isapi.door_station import DoorStation, DoorStationInfo, NotADoorStation, NotALock
 from aiohikvision.isapi.model.features.outputs import Output, OutputUse, parse_outputs
 from aiohikvision.isapi.model.features.talk import TalkChannel, TalkEnd, TalkError
-from aiohikvision.isapi.model.inventory import Identity
 from aiohikvision.isapi.wire.faults import BadCredentials
 from aiohikvision.isapi.wire.xmlview import parse
+from aiohikvision.models.firmware import Firmware
+from aiohikvision.models.identity import Identity
 from tests.fakes import FakeIsapiDevice, FakeTalkDevice
 
 if TYPE_CHECKING:
@@ -22,6 +23,13 @@ if TYPE_CHECKING:
     from aiohttp.test_utils import TestServer
 
 FRAME = bytes(range(160))
+
+OUTPUTS = (
+    '<IOOutputPortList xmlns="http://www.isapi.org/ver20/XMLSchema">'
+    "<IOOutputPort><id>1</id><name>COM1</name><IOUseType>electricLock</IOUseType></IOOutputPort>"
+    "<IOOutputPort><id>2</id><name>COM2</name><IOUseType>{second}</IOUseType></IOOutputPort>"
+    "</IOOutputPortList>"
+)
 
 
 @pytest.fixture
@@ -45,12 +53,13 @@ async def test_what_a_door_station_is(serve, session) -> None:
     info = await door.read_info()
     assert info.identity.model == "DS-KD8003-IME1(B)"
     assert info.identity.name == "Door Station"
-    assert info.identity.firmware == "V3.7.3"
+    assert info.identity.firmware == Firmware((3, 7, 3), 260915)
+    assert str(info.identity.firmware) == "V3.7.3 build 260915"
+    assert info.identity.device_id == "00000000-0000-4000-8000-000000000001"
     assert info.identity.stable_id == "dskd8003ime1b0120250101enfx0000001"
     assert info.doors == (1, 2)
     assert info.call_status
     assert info.talk == TalkChannel("1", "G.711ulaw")
-    assert info.rtsp_port == 554
     # COM2 drives a mechanical doorbell: door 2 is listed, but it does not open.
     # Its capabilities (as a DS-KD8003 V3.7.3 answers) say what else it could drive.
     assert info.outputs == (
@@ -60,9 +69,6 @@ async def test_what_a_door_station_is(serve, session) -> None:
         ),
     )
     assert info.locks == (1,)
-    # Its main stream, whose shape its pictures do not always have
-    assert info.stream is not None
-    assert (info.stream.codec, info.stream.width, info.stream.height) == ("H.264", 1920, 1080)
     assert door.info is info
     assert await door.call_status() == "idle"
 
@@ -111,20 +117,6 @@ async def test_a_door_station_that_lists_no_outputs(serve, session) -> None:
     assert await door.read_outputs() == ()
 
 
-async def test_a_door_station_that_does_not_describe_its_stream(serve, session) -> None:
-    device = FakeIsapiDevice("door_station", overrides={"/ISAPI/Streaming/channels/101": (404, "")})
-    door = await station(serve, session, device)
-    assert (await door.read_info()).stream is None
-
-
-OUTPUTS = (
-    '<IOOutputPortList xmlns="http://www.isapi.org/ver20/XMLSchema">'
-    "<IOOutputPort><id>1</id><name>COM1</name><IOUseType>electricLock</IOUseType></IOOutputPort>"
-    "<IOOutputPort><id>2</id><name>COM2</name><IOUseType>{second}</IOUseType></IOOutputPort>"
-    "</IOOutputPortList>"
-)
-
-
 def test_what_the_outputs_drive_and_could() -> None:
     ns = 'xmlns="http://www.isapi.org/ver20/XMLSchema"'
     capabilities = parse(
@@ -144,7 +136,7 @@ def test_what_the_outputs_drive_and_could() -> None:
     assert parse_outputs(parse(OUTPUTS.format(second="siren")))[1].use is OutputUse.OTHER
     assert parse_outputs(None) == ()
     info = DoorStationInfo(
-        identity=Identity(serial="S", model="M", name="N", firmware="F"),
+        identity=Identity(serial="S", model="M", name="N", firmware=Firmware.parse("F")),
         doors=(1, 2),
         call_status=True,
         talk=None,
@@ -152,34 +144,6 @@ def test_what_the_outputs_drive_and_could() -> None:
     )
     assert info.locks == (1,)
     assert info.output_of(3) is None
-
-
-async def test_picture_and_stream(serve, session) -> None:
-    door = await station(serve, session, FakeIsapiDevice("door_station"))
-    assert door.rtsp_url() == "rtsp://operator:s3cret-pass@127.0.0.1:554/Streaming/Channels/101"
-    await door.read_info()
-    assert (await door.snapshot()).startswith(b"\xff\xd8")
-    assert door.rtsp_url("102").endswith("/Streaming/Channels/102")
-
-
-def test_credentials_in_the_rtsp_address_are_encoded() -> None:
-    door = DoorStation(None, "192.0.2.10", "admin", "p@ss:w/rd")
-    assert door.rtsp_url() == "rtsp://admin:p%40ss%3Aw%2Frd@192.0.2.10:554/Streaming/Channels/101"
-
-
-def test_the_rtsp_port() -> None:
-    ns = 'xmlns="http://www.isapi.org/ver20/XMLSchema"'
-    moved = parse(
-        f"<AdminAccessProtocolList {ns}><AdminAccessProtocol><protocol>RTSP</protocol>"
-        "<portNo>8554</portNo></AdminAccessProtocol></AdminAccessProtocolList>"
-    )
-    assert rtsp_port(moved) == 8554
-    assert rtsp_port(None) == 554
-    off = parse(
-        f"<AdminAccessProtocolList {ns}><AdminAccessProtocol><protocol>RTSP</protocol>"
-        "<enabled>false</enabled><portNo>8554</portNo></AdminAccessProtocol></AdminAccessProtocolList>"
-    )
-    assert rtsp_port(off) == 554
 
 
 async def test_a_camera_is_no_door_station(serve, session) -> None:
@@ -207,7 +171,7 @@ async def talking_station(session: aiohttp.ClientSession, speaker: FakeTalkDevic
     with pytest.raises(TalkError, match="no_talk"):
         await door.talk(lambda _: None)
     door.info = DoorStationInfo(
-        identity=Identity(serial="S", model="M", name="N", firmware="F"),
+        identity=Identity(serial="S", model="M", name="N", firmware=Firmware.parse("F")),
         doors=(1,),
         call_status=True,
         talk=TalkChannel("1", "G.711ulaw"),

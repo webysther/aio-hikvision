@@ -28,7 +28,8 @@ from xml.sax.saxutils import escape
 
 from aiohttp import ClientResponse
 
-from aiohikvision.isapi.wire.faults import BridgeFault, DeviceRejected, Unsupported
+from aiohikvision.errors import HikvisionError
+from aiohikvision.isapi.wire.faults import DeviceRejected, Unsupported
 from aiohikvision.isapi.wire.link import IsapiLink
 from aiohikvision.isapi.wire.scrub import scrubbed_logger
 from aiohikvision.isapi.wire.xmlview import XmlNode
@@ -175,7 +176,7 @@ async def clock_offset(link: IsapiLink) -> timedelta:
     try:
         reply = await link.call("GET", TIME_PATH)
         offset = wall_offset_of(reply.xml().text("localTime"), datetime.now(UTC))
-    except BridgeFault:
+    except HikvisionError:
         offset = cached[1] if cached is not None else timedelta(0)
     _offsets[link] = (time.monotonic(), offset)
     return offset
@@ -273,7 +274,7 @@ async def _look_for_basis(link: IsapiLink, track: str, now: datetime, events: li
     end = now + max(wall, _NO_OFFSET) + NOW_TOLERANCE
     try:
         found = await _search(link, track, start, end, _NO_OFFSET)
-    except BridgeFault:
+    except HikvisionError:
         return
     utc = basis_of(max((r.end for r in found), default=None), now, wall)
     if utc is None:

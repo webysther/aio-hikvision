@@ -7,3 +7,7 @@
   Discovery (cameras, recorders, door stations), the vocabulary of events, and one module per
   feature (intercom, two-way audio, detections, image, recordings, PTZ…).
 """
+
+from aiohikvision._extras import require
+
+require("isapi")

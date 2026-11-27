@@ -4,6 +4,53 @@ All notable changes to aiohikvision. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the API.
 
+## [0.2.0] - Unreleased
+
+The library moves onto one layout for every Hikvision device, a part at a time: a client,
+a device that knows what it can do and how it behaves, one service per domain of ISAPI.
+The parts it replaces leave as their replacement comes, without shims.
+
+### Added
+
+- **`HikvisionClient` and `Device`**: `await HikvisionClient(session).connect(host, user,
+  password)` reads, once, who a device is (`device.identity`), what it can do
+  (`device.capabilities`) and how it behaves (`device.behaviours`).
+- **What a device can do** (`Capabilities`): every element of `/ISAPI/System/capabilities`
+  by its path, and the domains it shows (`Domain`: streaming, events, io,
+  video_intercom, access_control, two_way_audio, smart, ptz, holidays), each `Support`
+  PRESENT, ABSENT, or UNKNOWN when the device does not say.
+- **How devices differ** (`aiohikvision.behaviours`): each difference between models, or
+  firmware of one model, is a named behaviour (`talk_packet`, `alert_stream`,
+  `call_status`, `triggers`), set by rules matching a model or a glob of models, a range
+  of firmware versions (`VersionRange.parse(">=3.7,<3.8")`) and a device type, the most
+  specific winning. `KNOWN_RULES` holds those seen on real devices, with where;
+  `HikvisionClient(rules=..., overrides=...)` adds yours, and `device.resolved.decisions`
+  says what decided each one.
+- `Firmware`: the version and build of a device as numbers (`firmware.parts`,
+  `firmware.build`); `str(firmware)` is what the device wrote.
+- `Identity.device_id`: the `deviceID` the device reports, as it is.
+- Every value of the new models is an enum with a numeric code that never changes
+  (`.code`, `from_code()`).
+
+### Changed
+
+- **Each part is an extra; the default install has no dependency.** Install
+  `aiohikvision[isapi]` for the HTTP API, `[sip]` for the calls of door stations, `[rtp]`,
+  `[scrambling]`, or `[all]`. A part used without its extra raises `MissingExtra`, saying
+  what to install; `import aiohikvision` no longer imports aiohttp nor aiosipua.
+- The base of every error is `aiohikvision.errors.HikvisionError` (it was
+  `isapi.wire.faults.BridgeFault`).
+- `Identity` is in `aiohikvision.models.identity` (and `from aiohikvision import Identity`),
+  frozen; its `firmware` is a `Firmware`, and `firmware_build` is part of it.
+- The digest authentication moved to `aiohikvision.auth.digest` (from
+  `isapi.wire.signer`), to be shared with RTSP.
+- A device answering 501 without saying more is `Unsupported`.
+
+### Removed
+
+- `isapi.model.discover.read_identity` and `read_identity_only`: `Device.identity`, or
+  `services.system.System(link).identity()`.
+
 ## [0.1.7] - 2026-11-27
 
 ### Added
@@ -154,6 +201,12 @@ DS-KD8003-IME1(B), firmware V3.7.1 and V3.7.3 ([findings](docs/DEVICE_FINDINGS.m
 - **`scripts/door_server.py`:** the library as the door's server, from a terminal. Its `facade`
   mode rings until the door gives up; its `hybrid` mode answers and talks in tone bursts.
 
+[0.2.0]: https://github.com/webysther/aio-hikvision/compare/v0.1.7...v0.2.0
+[0.1.7]: https://github.com/webysther/aio-hikvision/compare/v0.1.6...v0.1.7
+[0.1.6]: https://github.com/webysther/aio-hikvision/compare/v0.1.5...v0.1.6
+[0.1.5]: https://github.com/webysther/aio-hikvision/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/webysther/aio-hikvision/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/webysther/aio-hikvision/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/webysther/aio-hikvision/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/webysther/aio-hikvision/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/webysther/aio-hikvision/releases/tag/v0.1.0

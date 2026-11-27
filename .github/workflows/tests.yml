@@ -42,3 +42,41 @@ jobs:
 
       - name: Test (pytest)
         run: pytest --cov --cov-report=term-missing --cov-report=xml
+
+  lean:
+    name: Without extras
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install the package alone
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+
+      # The default install imports no dependency, and a part without its extra says how to
+      # install it
+      - name: Import the core with the standard library only
+        working-directory: /tmp
+        run: |
+          python -I - <<'PY'
+          import sys
+
+          import aiohikvision
+          from aiohikvision import MissingExtra
+
+          loaded = {"aiohttp", "yarl", "defusedxml", "aiosipua", "cryptography"} & set(sys.modules)
+          assert not loaded, loaded
+          try:
+              aiohikvision.HikvisionClient
+          except MissingExtra as err:
+              print(err)
+          else:
+              raise SystemExit("HikvisionClient imported without aiohikvision[isapi]")
+          PY

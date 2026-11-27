@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from aiohikvision.errors import HikvisionError
 from aiohikvision.isapi.model.features import VerifyMismatch, patch_and_verify
 from aiohikvision.isapi.model.ids import seg
 from aiohikvision.isapi.model.vocabulary import Kind
-from aiohikvision.isapi.wire.faults import BridgeFault, Unsupported
+from aiohikvision.isapi.wire.faults import Unsupported
 from aiohikvision.isapi.wire.link import IsapiLink
 from aiohikvision.isapi.wire.xmlview import RawDocument, XmlNode, parse
 
@@ -99,7 +100,7 @@ async def _draws_polygons(link: IsapiLink, path: str, document: XmlNode) -> bool
         return False
     try:
         caps = await link.read_xml(f"{path}/capabilities", optional=True)
-    except BridgeFault:
+    except HikvisionError:
         return False
     node = caps.first("regionType") if caps is not None else None
     options = node.attrs.get("opt", "") if node is not None else ""

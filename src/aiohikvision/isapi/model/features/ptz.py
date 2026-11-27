@@ -6,8 +6,8 @@ import asyncio
 import contextlib
 from dataclasses import dataclass, field
 
+from aiohikvision.errors import HikvisionError
 from aiohikvision.isapi.model.ids import numeric_id, seg
-from aiohikvision.isapi.wire.faults import BridgeFault
 from aiohikvision.isapi.wire.link import IsapiLink
 from aiohikvision.isapi.wire.xmlview import XmlNode
 
@@ -106,7 +106,7 @@ async def move(link: IsapiLink, channel_id: str, pan: int, tilt: int, zoom: int,
         await link.write_xml(path, MOVE.format(p=pan, t=tilt, z=zoom))
         await asyncio.sleep(seconds)
     finally:
-        with contextlib.suppress(BridgeFault):
+        with contextlib.suppress(HikvisionError):
             await link.write_xml(path, MOVE.format(p=0, t=0, z=0))
 
 
