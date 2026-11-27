@@ -53,7 +53,10 @@ time, a new one takes the speaker over).
 
 The door station calls over SIP; its picture and sound are read over RTSP. The
 library is the SIP server of the door's VoIP line and the callee of its calls
-([why](https://github.com/webysther/aio-hikvision/blob/main/docs/ADR-0001-hybrid-call.md)):
+([why](https://github.com/webysther/aio-hikvision/blob/main/docs/ADR-0001-hybrid-call.md)).
+It can also hand on the door's sound of an answered call, for players that cannot
+play the sound of the RTSP stream
+([why](https://github.com/webysther/aio-hikvision/blob/main/docs/ADR-0002-door-sound-over-sip.md)):
 
 ```python
 import asyncio
@@ -100,6 +103,10 @@ asyncio.run(main())
   refused or hung up on command; every command names its call. Two answers at once
   give the call to the first. The answer is G.711 at `a=ptime:40`, `a=sendonly`,
   `m=video 0`.
+- **`on_audio`:** given to `CallServer`, the answer becomes `a=sendrecv`, and it is
+  called with each 40 ms G.711 payload of the door, in order, in the law of
+  `call.talkback.codec`. `DoorSound` drops what is not the door's (another address,
+  a key press, a late packet) and counts it in `call.sound.stats`.
 - **`Talkback`:** the microphone to the door during a call: `call.push(frame)` takes
   20 ms G.711 frames, and they leave as 40 ms RTP packets on an absolute clock, in
   bursts. The door slows its own audio when it receives 20 ms packets.

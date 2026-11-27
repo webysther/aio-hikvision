@@ -1,8 +1,11 @@
 """Calls from a door station: it rings, someone answers and talks, someone hangs up.
 
-Only the call and our microphone go over SIP: the answer asks the door to send no RTP
-(``a=sendonly``) and no video (``m=video 0``), because its picture and sound are read over RTSP
-(docs/ADR-0001-hybrid-call.md).
+The call and our microphone go over SIP, and no video (``m=video 0``): the door's picture is
+read over RTSP (docs/ADR-0001-hybrid-call.md). Its sound is too, unless the server is given
+``on_audio``: then the answer asks for the door's own RTP (``a=sendrecv``) and hands its G.711
+payloads on, for browsers that cannot play the sound of the RTSP stream
+(docs/ADR-0002-door-sound-over-sip.md). Otherwise the door is asked to send none
+(``a=sendonly``).
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ from aiosipua import IncomingCall, SipUAS
 from aiosipua.header_codec import parse_address, parse_uri
 from aiosipua.sdp_negotiate import negotiate_sdp
 
+from aiohikvision.rtp.door_sound import DoorSound
 from aiohikvision.rtp.talkback import Talkback
 from aiohikvision.sip.messages import SERVER, response
 
@@ -92,6 +96,8 @@ class DoorCall:
     ended_at: float | None = None
     talkback: Talkback | None = field(default=None, repr=False)
     """Our microphone to the door, while the call is answered."""
+    sound: DoorSound | None = field(default=None, repr=False)
+    """The door's sound, while the call is answered, when the server hands it on."""
     _incoming: IncomingCall | None = field(default=None, repr=False)
 
     def push(self, frame: bytes) -> None:
@@ -113,14 +119,20 @@ class CallServer:
         advertise: str,
         rtp_host: str = "0.0.0.0",  # noqa: S104 (the door station is on the LAN)
         on_change: Callable[[DoorCall], None] | None = None,
+        on_audio: Callable[[DoorCall, bytes], None] | None = None,
         registrar: DoorRegistrar | None = None,
         user_agent: str = SERVER,
     ) -> None:
-        """Serve calls on a transport; ``advertise`` is our address as the doors reach it."""
+        """Serve calls on a transport; ``advertise`` is our address as the doors reach it.
+
+        ``on_audio`` takes the door's sound of each answered call: 40 ms G.711 payloads in
+        the law of ``call.talkback.codec``, in order.
+        """
         self.transport = transport
         self.advertise = advertise
         self.rtp_host = rtp_host
         self._on_change = on_change
+        self._on_audio = on_audio
         self._uas = SipUAS(
             transport, user_agent=user_agent, advertised_addr=(advertise, transport.local_addr[1])
         )
@@ -185,8 +197,14 @@ class CallServer:
             msg = f"Call {call_id} is already being answered"
             raise CallError(msg)
         self._answering.add(call_id)
+        sound = self._sound_of(call, offer.rtp_address[0], payload_type)
         try:
-            talkback = Talkback(offer.rtp_address, payload_type, local=(self.rtp_host, 0))
+            talkback = Talkback(
+                offer.rtp_address,
+                payload_type,
+                local=(self.rtp_host, 0),
+                received=sound.received if sound is not None else None,
+            )
             await talkback.start()
         finally:
             self._answering.discard(call_id)
@@ -195,8 +213,10 @@ class CallServer:
             await talkback.close()
             msg = f"Call {call_id} ended before it was answered"
             raise CallError(msg)
-        incoming.accept(_answer(offer, self.advertise, talkback.local_port, payload_type))
+        answer = _answer(offer, self.advertise, talkback.local_port, payload_type, receive=sound is not None)
+        incoming.accept(answer)
         call.talkback = talkback
+        call.sound = sound
         call.state = CallState.ANSWERED
         call.answered_at = time.monotonic()
         _LOGGER.info("Answered call %s of door station %s", call.id, call.door)
@@ -218,6 +238,16 @@ class CallServer:
             call._incoming.hangup()  # noqa: SLF001
         await self._end(call, EndReason.HUNG_UP)
         return call
+
+    def _sound_of(self, call: DoorCall, media_host: str, payload_type: int) -> DoorSound | None:
+        """Return the door's sound of a call, handed to ``on_audio``; None without it.
+
+        It comes from the address of the door's SDP, which is the one it calls from.
+        """
+        on_audio = self._on_audio
+        if on_audio is None:
+            return None
+        return DoorSound({call.door, media_host}, payload_type, lambda payload: on_audio(call, payload))
 
     def _live(self, call_id: str, state: CallState) -> DoorCall:
         call = self.calls.get(call_id)
@@ -274,6 +304,7 @@ class CallServer:
         call.state = CallState.ENDED
         call.end_reason = reason
         call.ended_at = time.monotonic()
+        call.sound = None
         if call.talkback is not None:
             talkback, call.talkback = call.talkback, None
             task = asyncio.get_running_loop().create_task(talkback.close())
@@ -283,6 +314,7 @@ class CallServer:
         self._notify(call)
 
     async def _end(self, call: DoorCall, reason: EndReason) -> None:
+        call.sound = None
         if call.talkback is not None:
             talkback, call.talkback = call.talkback, None
             await talkback.close()
@@ -316,8 +348,8 @@ def _first_g711(offer: SdpMessage) -> int | None:
     return None
 
 
-def _answer(offer: SdpMessage, address: str, port: int, payload_type: int) -> SdpMessage:
-    """Our answer: G.711 in 40 ms packets, sent only by us, and no video."""
+def _answer(offer: SdpMessage, address: str, port: int, payload_type: int, *, receive: bool) -> SdpMessage:
+    """Our answer: G.711 in 40 ms packets, sent only by us unless we ``receive`` too, no video."""
     events = [
         c for c in (offer.audio.codecs if offer.audio else []) if c.encoding_name.lower() == "telephone-event"
     ]
@@ -328,6 +360,6 @@ def _answer(offer: SdpMessage, address: str, port: int, payload_type: int) -> Sd
     if answer.audio is not None:
         for direction in _DIRECTIONS:
             answer.audio.attributes.pop(direction, None)
-        answer.audio.attributes["sendonly"] = []
+        answer.audio.attributes["sendrecv" if receive else "sendonly"] = []
         answer.audio.attributes["ptime"] = [str(PTIME)]
     return answer

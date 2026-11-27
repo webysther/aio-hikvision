@@ -161,6 +161,30 @@ async def test_wrong_frames_are_dropped() -> None:
     assert talkback.local_port == 0
 
 
+async def test_what_arrives_on_the_socket() -> None:
+    """What arrives goes to ``received``; without it, it is left alone."""
+    arrived: list[tuple[bytes, tuple[str, int]]] = []
+    listening = Talkback(
+        ("127.0.0.1", 9), local=("127.0.0.1", 0), received=lambda data, addr: arrived.append((data, addr))
+    )
+    deaf = Talkback(("127.0.0.1", 9), local=("127.0.0.1", 0))
+    await listening.start()
+    await deaf.start()
+    loop = asyncio.get_running_loop()
+    sender, _ = await loop.create_datagram_endpoint(asyncio.DatagramProtocol, local_addr=("127.0.0.1", 0))
+    try:
+        sender.sendto(b"door", ("127.0.0.1", deaf.local_port))
+        sender.sendto(b"door", ("127.0.0.1", listening.local_port))
+        async with asyncio.timeout(2):
+            while not arrived:  # noqa: ASYNC110 (the datagram has no event of its own)
+                await asyncio.sleep(0.01)
+        assert arrived[0][0] == b"door"
+    finally:
+        sender.close()
+        await listening.close()
+        await deaf.close()
+
+
 def test_the_codec_is_named_as_isapi_names_it() -> None:
     """The browser encodes in the variant the talk names, during a call or not."""
     assert Talkback(("127.0.0.1", 9)).codec == "G.711ulaw"

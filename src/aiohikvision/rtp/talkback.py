@@ -16,6 +16,10 @@ import secrets
 import struct
 from collections import deque
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,7 +82,14 @@ class TalkbackStats:
 
 
 class _Endpoint(asyncio.DatagramProtocol):
-    """The UDP socket of the stream. The door is asked to send nothing back, so this only sends."""
+    """The UDP socket of the stream: it sends our packets, and hands on what arrives."""
+
+    def __init__(self, received: Callable[[bytes, tuple[str, int]], None] | None) -> None:
+        self._received = received
+
+    def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
+        if self._received is not None:
+            self._received(data, addr)
 
 
 class Talkback:
@@ -103,8 +114,13 @@ class Talkback:
         *,
         local: tuple[str, int] = ("0.0.0.0", 0),  # noqa: S104 (the door station is on the LAN)
         max_delay: float = 0.12,
+        received: Callable[[bytes, tuple[str, int]], None] | None = None,
     ) -> None:
-        """Talk to ``remote`` from ``local``, the address our SDP gave the door."""
+        """Talk to ``remote`` from ``local``, the address our SDP gave the door.
+
+        ``received`` takes what arrives on that socket: the door's own RTP, when the
+        answer asked for it (aiohikvision.rtp.door_sound).
+        """
         if payload_type not in SILENCE:
             msg = f"G.711 payload type expected (0 or 8), not {payload_type}"
             raise ValueError(msg)
@@ -120,6 +136,7 @@ class Talkback:
         self._task: asyncio.Task[None] | None = None
         self._last_packet_at: float | None = None
         self._last_frame_at = 0.0
+        self._received = received
 
     @property
     def payload_type(self) -> int:
@@ -141,7 +158,9 @@ class Talkback:
     async def start(self) -> None:
         """Open the socket and start the sender."""
         loop = asyncio.get_running_loop()
-        self._transport, _ = await loop.create_datagram_endpoint(_Endpoint, local_addr=self.local)
+        self._transport, _ = await loop.create_datagram_endpoint(
+            lambda: _Endpoint(self._received), local_addr=self.local
+        )
         self._task = loop.create_task(self._run(), name="aiohikvision talkback")
 
     def push(self, frame: bytes) -> None:

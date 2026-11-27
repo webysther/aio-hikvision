@@ -103,6 +103,16 @@ class FakeCall:
         """Wait for the 200 OK; RuntimeError if the call was refused."""
         await self.call.wait_answered(timeout=timeout)
 
+    def send_audio(self, *packets: bytes) -> None:
+        """Send RTP from the door's audio port to the address of the answer, as the door does."""
+        answer = self.call.sdp_answer
+        transport = self.door._rtp_transport
+        assert answer is not None
+        assert answer.rtp_address is not None
+        assert transport is not None
+        for packet in packets:
+            transport.sendto(packet, answer.rtp_address)
+
     def cancel(self) -> None:
         """Give up while it rings (the visitor walked away, or the ring time ran out)."""
         self.call.cancel(self.door.uac)

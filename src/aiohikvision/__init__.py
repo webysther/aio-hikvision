@@ -18,12 +18,14 @@ from aiohikvision.isapi.model.features.image import ImageCapability, ImageValue
 from aiohikvision.isapi.model.features.inputs import Input, InputUse
 from aiohikvision.isapi.model.features.outputs import Output, OutputUse
 from aiohikvision.isapi.model.features.talk import TalkEnd, TalkError, TwoWayAudio
+from aiohikvision.rtp.door_sound import DoorSound, DoorSoundStats, Dropped
+from aiohikvision.rtp.packets import RtpPacket
 from aiohikvision.rtp.talkback import Packetizer, Talkback, TalkbackStats
 from aiohikvision.sip.calls import CallError, CallServer, CallState, DoorCall, EndReason
 from aiohikvision.sip.registrar import DoorRegistrar, Registration
 from aiohikvision.sip.transport import DoorTransport, is_keepalive
 
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 
 __all__ = [
     "CallError",
@@ -31,10 +33,13 @@ __all__ = [
     "CallState",
     "DoorCall",
     "DoorRegistrar",
+    "DoorSound",
+    "DoorSoundStats",
     "DoorStation",
     "DoorStationHealth",
     "DoorStationInfo",
     "DoorTransport",
+    "Dropped",
     "EndReason",
     "ImageCapability",
     "ImageValue",
@@ -46,6 +51,7 @@ __all__ = [
     "OutputUse",
     "Packetizer",
     "Registration",
+    "RtpPacket",
     "Setting",
     "TalkEnd",
     "TalkError",

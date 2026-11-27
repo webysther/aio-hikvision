@@ -42,7 +42,9 @@ src/aiohikvision/
                  CallServer and DoorCall (ring, answer, reject, hang up; every
                  command names its call), messages.py
   rtp/           talkback.py Talkback: the microphone to the door, 40 ms G.711
-                 packets on an absolute clock, in bursts
+                 packets on an absolute clock, in bursts; door_sound.py
+                 DoorSound: the door's sound of a call, in order (pure);
+                 packets.py RtpPacket
   media/         g711.py: reference µ-law and A-law encoders, tones, frames
   isapi/         from Hikvision Bridge (see NOTICE): wire/ (the authenticated
                  link, faults, the event feed, XML) and model/ (discovery and
@@ -54,9 +56,10 @@ tests/           pytest; tests/fakes holds the doubles of the measured devices
                  two-way audio endpoint)
 scripts/         door_server.py (the library as a door's SIP server, from a
                  terminal) and sip_probe.py (the measuring tool of the findings)
-docs/            DEVICE_FINDINGS.md (what the door station does, measured) and
+docs/            DEVICE_FINDINGS.md (what the door station does, measured),
                  ADR-0001-hybrid-call.md (why the call is SIP and the picture
-                 RTSP)
+                 RTSP) and ADR-0002-door-sound-over-sip.md (the door's sound of
+                 a call over SIP, for players without the RTSP sound)
 ```
 
 The public API is what `aiohikvision/__init__.py` exports in `__all__`, plus

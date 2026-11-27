@@ -367,3 +367,47 @@ async def test_only_the_latest_ended_calls_are_kept(server: Server, monkeypatch:
         server.calls.calls[call.id] = call
         await server.calls._end(call, EndReason.CANCELLED)
     assert list(server.calls.calls) == ["call-2", "call-3"]
+
+
+async def test_the_door_sound_is_handed_on() -> None:
+    """With on_audio the answer asks for the door's RTP, and its G.711 payloads come in order."""
+    heard: list[tuple[str, bytes]] = []
+    transport = DoorTransport(local_addr=(HOST, 0), allowed_hosts={HOST})
+    calls = CallServer(
+        transport,
+        advertise=HOST,
+        rtp_host=HOST,
+        on_audio=lambda call, payload: heard.append((call.id, payload)),
+    )
+    await calls.start()
+    udp = transport._udp_transport
+    assert udp is not None
+    door = FakeDoorStation(HOST)
+    await door.start((HOST, int(udp.get_extra_info("sockname")[1])))
+    try:
+        fake = door.call("REDACTED")
+        await until(lambda: calls.current(HOST) is not None)
+        call = calls.current(HOST)
+        assert call is not None
+        await calls.answer(call.id)
+        await fake.answered()
+        assert fake.answer is not None
+        assert fake.answer.audio is not None
+        assert "sendrecv" in fake.answer.audio.attributes
+        assert "sendonly" not in fake.answer.audio.attributes
+
+        def packet(sequence: int, payload_type: int = 0) -> bytes:
+            return (
+                struct.pack("!BBHII", 0x80, payload_type, sequence, sequence * 320, 1)
+                + bytes([sequence]) * 320
+            )
+
+        fake.send_audio(packet(1), packet(2), packet(3, payload_type=101), packet(2))
+        await until(lambda: call.sound is not None and sum(call.sound.stats.dropped.values()) == 2)
+        assert heard == [(call.id, bytes([1]) * 320), (call.id, bytes([2]) * 320)]
+
+        await calls.hangup(call.id)
+        assert call.sound is None
+    finally:
+        await door.stop()
+        await calls.stop()

@@ -4,6 +4,20 @@ All notable changes to aiohikvision. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the API.
 
+## [0.1.7] - Unreleased
+
+### Added
+
+- **The door's sound of a call, over SIP** (`CallServer(on_audio=...)`): the answer asks
+  for the door's RTP (`a=sendrecv`), and each 40 ms G.711 payload of an answered call is
+  handed on in order, for players that cannot play the sound of the RTSP stream (Home
+  Assistant's HLS keeps no G.711). Without `on_audio` nothing changes (`a=sendonly`).
+  `DoorSound` keeps the door's packets of the codec of the call and drops the rest
+  (another address, a key press, a packet again or behind), counting them in
+  `call.sound.stats`; `RtpPacket` reads an RTP datagram. See
+  `docs/ADR-0002-door-sound-over-sip.md`.
+- `Talkback(received=...)`: what arrives on the socket of the call.
+
 ## [0.1.6] - 2026-11-26
 
 ### Added
