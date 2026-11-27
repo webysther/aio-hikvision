@@ -50,19 +50,23 @@ From the simplest to the rawest, in three levels like the constructs of the AWS 
 
 ```text
 src/aiohikvision/
-  patterns/      level 3: connect() → Hikvision (who it is, Supports, its cameras),
-                 Camera (a channel: snapshot(), stream_url()); the questions an
-                 integration asks, answered by attributes read once     [isapi]
+  patterns/      level 3: connect() → Hikvision (who it is, Supports, its cameras,
+                 its events), Camera (a channel: snapshot(), stream_url()),
+                 EventMonitor (sources, state(), subscribe(), run(), watch()); the
+                 questions an integration asks, answered by attributes read once
+                                                                                [isapi]
   client.py      HikvisionClient(session, rules=, overrides=): connect() → Device  [isapi]
   device.py      Device: identity, capabilities and behaviours, read once; its services;
                  summary() (the debug record of how it was recognised)
   report.py      the report of a device (GET only, anonymized, what is missing);
                  __main__.py: python -m aiohikvision report <address>          [isapi]
   services/      one class per domain of ISAPI (system.py System, streaming.py
-                 Streaming), I/O only                                          [isapi]
+                 Streaming, events.py Events), I/O only; events.py also holds
+                 EventStates, the pure state of each event                     [isapi]
   parsers/       the documents of a domain as models, without I/O              [isapi]
   models/        frozen models: identity.py Identity, firmware.py Firmware,
-                 streaming.py Stream, StreamId, VideoFormat,
+                 streaming.py Stream, StreamId, VideoFormat, events.py
+                 EventSource, EventState, Trigger,
                  capabilities.py Capabilities (Domain, Support), _coded.py
                  CodedEnum (every value has a numeric code that never changes)
   behaviours/    how devices differ: Behaviours (one named enum per quirk);

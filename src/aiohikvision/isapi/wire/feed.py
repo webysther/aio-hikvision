@@ -632,7 +632,7 @@ class AlarmFeed:
 
     def start(self, create_task: Callable[..., asyncio.Task[None]]) -> None:
         if self._task is None:
-            self._task = create_task(self._run(), f"aiohikvision feed {self._link.endpoint.host}")
+            self._task = create_task(self.run(), f"aiohikvision feed {self._link.endpoint.host}")
 
     async def stop(self) -> None:
         task, self._task = self._task, None
@@ -650,7 +650,8 @@ class AlarmFeed:
         if asyncio.iscoroutine(result):
             await result
 
-    async def _run(self) -> None:
+    async def run(self) -> None:
+        """Keep the stream open, reconnecting, until cancelled or the account is refused."""
         reconnects = Reconnects()
         while True:
             try:

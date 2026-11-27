@@ -21,6 +21,7 @@ from aiohikvision.client import HikvisionClient
 from aiohikvision.models._coded import CodedEnum, coded
 from aiohikvision.models.capabilities import Capabilities, Domain, Support
 from aiohikvision.models.streaming import Stream, StreamId, StreamKind
+from aiohikvision.patterns.events import EventMonitor
 
 if TYPE_CHECKING:
     import ssl
@@ -117,6 +118,8 @@ class Camera:
         self.streaming = streaming
         self.channel = channel
         self.streams = streams
+        self.name = next((stream.name for stream in streams if stream.name), None)
+        """The name the device gives the channel, when it gives one."""
 
     @property
     def main(self) -> Stream | None:
@@ -161,11 +164,17 @@ class Hikvision:
     """A Hikvision device: who it is, what it supports, its cameras; ``device`` is level 2."""
 
     def __init__(
-        self, device: Device, cameras: tuple[Camera, ...], client: HikvisionClient | None = None
+        self,
+        device: Device,
+        cameras: tuple[Camera, ...],
+        events: EventMonitor | None = None,
+        client: HikvisionClient | None = None,
     ) -> None:
         """Make the device of what was read from it; :func:`connect` reads it."""
         self.device = device
         self.cameras = cameras
+        self.events = events
+        """Its events; None when the device has none."""
         self._client = client
         identity = device.identity
         self.id = identity.stable_id
@@ -178,17 +187,9 @@ class Hikvision:
 
     @classmethod
     async def from_device(cls, device: Device, client: HikvisionClient | None = None) -> Self:
-        """Read the cameras of a device (level 2), grouping its streams by channel."""
-        streaming = device.streaming
-        if streaming is None:
-            return cls(device, (), client)
-        streams = await streaming.streams()
-        channels = sorted({stream.id.channel for stream in streams}) or [1]
-        cameras = tuple(
-            Camera(streaming, channel, tuple(stream for stream in streams if stream.id.channel == channel))
-            for channel in channels
-        )
-        return cls(device, cameras, client)
+        """Read the cameras (its streams, by channel) and the events of a device (level 2)."""
+        events = None if device.events is None else EventMonitor(device.events, await device.events.sources())
+        return cls(device, await _cameras(device.streaming), events, client)
 
     @property
     def camera(self) -> Camera | None:
@@ -224,6 +225,17 @@ class Hikvision:
     def __repr__(self) -> str:
         """Show what the device is."""
         return f"<Hikvision {self.kind} {self.model} {self.firmware}>"
+
+
+async def _cameras(streaming: Streaming | None) -> tuple[Camera, ...]:
+    if streaming is None:
+        return ()
+    streams = await streaming.streams()
+    channels = sorted({stream.id.channel for stream in streams}) or [1]
+    return tuple(
+        Camera(streaming, channel, tuple(stream for stream in streams if stream.id.channel == channel))
+        for channel in channels
+    )
 
 
 class Connecting:

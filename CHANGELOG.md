@@ -19,6 +19,22 @@ The parts it replaces leave as their replacement comes, without shims.
   inputs, outputs…) and its cameras (`hik.camera`, `hik.cameras`, one per channel on a
   recorder), each with `snapshot()` and `stream_url()` on the main stream unless told
   another. `hik.device` is level 2, `hik.device.link` level 1.
+- **Events** (`hik.events`, `EventMonitor`): which events a device notifies, each on its
+  channel or alarm input (`EventSource`: `vmd 2`, `io 1`), read from its triggers once; how
+  each stands (`state(source)` → `EventState`: on or off, since when, the count, the
+  target); `subscribe(callback, source)` to be told when one turns on or off or the alert
+  stream connects or drops; `run()` keeps the alert stream open, and `watch()` yields each
+  change while running it. An event the device stops posting turns off after 5 seconds.
+  A device that fails on its triggers with a server error says its events in
+  `/ISAPI/Event/triggersCap` (the `triggers` behaviour reads it first), and a device whose
+  `alert_stream` behaviour is `none` is not asked for one. Level 2: `device.events`
+  (`Events`: `sources()`, `feed()`) and `EventStates`, pure. The debug log lists the events
+  of a device once, grouped (`vmd 1-6, io 1`).
+- **Recorders**: a camera has the name the device gives its channel (`camera.name`), and a
+  channel without a picture of its own gives the picture its recorder relays
+  (`/ISAPI/ContentMgmt/StreamingProxy`).
+- **The faults are names of the package**: `aiohikvision.BadCredentials`, `Unreachable`,
+  `LockedOut`, `Forbidden`, `Unsupported`, `DeviceRejected`, `InsecureAuth`, `NotIsapi`.
 - **`HikvisionClient` and `Device`**: `await HikvisionClient(session).connect(host, user,
   password)` reads, once, who a device is (`device.identity`), what it can do
   (`device.capabilities`) and how it behaves (`device.behaviours`).

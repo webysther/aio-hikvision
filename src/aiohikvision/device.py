@@ -22,6 +22,7 @@ from aiohikvision.behaviours.rules import KNOWN_RULES, Source, resolve
 from aiohikvision.isapi.wire.scrub import scrubbed_logger
 from aiohikvision.models.capabilities import Domain, Support
 from aiohikvision.report import COVERAGE, collect_report
+from aiohikvision.services.events import Events
 from aiohikvision.services.streaming import Streaming
 from aiohikvision.services.system import System
 
@@ -55,6 +56,7 @@ class Device:
         self.resolved = resolved
         self.system = System(link)
         self.streaming = self._service(Domain.STREAMING, Streaming)
+        self.events = self._service(Domain.EVENTS, lambda link: Events(link, resolved.behaviours))
 
     def _service[S](self, domain: Domain, service: Callable[[IsapiLink], S]) -> S | None:
         """Return the service of a domain, unless the capabilities say the device has none."""

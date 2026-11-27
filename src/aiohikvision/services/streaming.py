@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, Final
 from yarl import URL
 
 from aiohikvision.isapi.model.features.health import read_session_count
-from aiohikvision.isapi.wire.faults import DeviceRejected
+from aiohikvision.isapi.wire.faults import DeviceRejected, Unsupported
 from aiohikvision.isapi.wire.scrub import scrubbed_logger
 from aiohikvision.models.streaming import Stream, StreamId
 from aiohikvision.parsers.streaming import STREAMING_CHANNELS, parse_rtsp_port, parse_streams
 
 if TYPE_CHECKING:
-    from aiohikvision.isapi.wire.link import IsapiLink
+    from aiohikvision.isapi.wire.link import IsapiLink, Reply
 
 _LOGGER = scrubbed_logger(__name__)
 
@@ -22,6 +22,9 @@ MAIN: Final = StreamId(1, 1)
 
 JPEG_START: Final = b"\xff\xd8"
 """How a JPEG picture begins (its SOI marker): a device that fails may answer 200 with XML."""
+
+STREAMING_PROXY: Final = "/ISAPI/ContentMgmt/StreamingProxy/channels"
+"""The channels a recorder relays from its cameras; their picture when a channel has none of its own."""
 
 ADMIN_ACCESSES: Final = "/ISAPI/Security/adminAccesses"
 """The protocols a device is reached by, with their ports (RTSP among them)."""
@@ -55,15 +58,30 @@ class Streaming:
     async def snapshot(
         self, stream: StreamId | str = MAIN, *, width: int | None = None, height: int | None = None
     ) -> bytes:
-        """Return a JPEG of a stream now, at a size of its own unless asked for one."""
-        path = f"{STREAMING_CHANNELS}/{_id(stream).isapi}/picture"
+        """Return a JPEG of a stream now, at a size of its own unless asked for one.
+
+        A recorder's channel without a picture of its own gives its camera's, relayed.
+        """
+        picture = f"{_id(stream).isapi}/picture"
         if width and height:
-            path += f"?videoResolutionWidth={width}&videoResolutionHeight={height}"
-        reply = await self.link.read_bytes(path)
+            picture += f"?videoResolutionWidth={width}&videoResolutionHeight={height}"
+        try:
+            reply = await self.link.read_bytes(f"{STREAMING_CHANNELS}/{picture}")
+        except (Unsupported, DeviceRejected):
+            relayed = await self._relayed(f"{STREAMING_PROXY}/{picture}")
+            if relayed is None:
+                raise
+            reply = relayed
         if not reply.body.startswith(JPEG_START):
             msg = "the device sent no picture"
             raise DeviceRejected(msg, reply.status)
         return reply.body
+
+    async def _relayed(self, path: str) -> Reply | None:
+        try:
+            return await self.link.read_bytes(path)
+        except (Unsupported, DeviceRejected):
+            return None
 
     async def rtsp_port(self) -> int:
         """Return the RTSP port of the device (554 unless it says another), read once."""

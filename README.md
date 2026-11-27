@@ -101,6 +101,41 @@ door_station Supports(snapshot=True, streaming=True, events=True, smart=False, p
 
 `None` in `Supports` means the device did not say.
 
+## Its events
+
+`hik.events` says which events the device notifies, and follows them as they turn on and
+off:
+
+```python
+import asyncio
+import os
+
+import aiohikvision
+
+
+async def main() -> None:
+    async with aiohikvision.connect(
+        os.environ["DEVICE_HOST"], os.environ["DEVICE_USERNAME"], os.environ["DEVICE_PASSWORD"]
+    ) as hik:
+        print(", ".join(map(str, hik.events.sources)))
+        async for source, state in hik.events.watch():
+            print(source, "on" if state.active else "off")
+
+
+asyncio.run(main())
+```
+
+```text
+io 1, vmd 1, tamperdetection 1, diskfull 1, diskerror 1, nicbroken 1, ipconflict 1, …
+vmd 1 on
+vmd 1 off
+```
+
+An event the device stops posting turns off after 5 seconds: many never say when they
+end. An integration runs `hik.events.run()` as a task of its own and subscribes each
+entity, `hik.events.subscribe(entity.update, source)`, which then reads
+`hik.events.state(source)`. A device without events has `hik.events` None.
+
 ## When something does not work
 
 Make the report of your device, and send it to us:
@@ -287,8 +322,9 @@ point its VoIP line at your server, and set its SIP audio to G.711 only.
 | Who a device is, what it supports, its cameras, pictures and streams | Available |
 | Rules of model and firmware, the device report, the debug log | Available |
 | Door stations: doors, inputs and outputs, settings, speaker, calls over SIP | Available |
-| The alert stream of events | Available; event states planned |
-| Recorders' proxied channels, live video in the browser, PTZ, smart detections | Planned |
+| Events: which a device notifies, their state, the alert stream | Available |
+| Recorders: a camera per channel, its name, the relayed picture of a channel | Available |
+| Live video in the browser, PTZ, smart detections, recordings | Planned |
 
 aiohikvision aims to be the one library the Hikvision projects of Home Assistant need.
 These guides map what each one uses to aiohikvision, with the code before and after:

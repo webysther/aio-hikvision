@@ -31,6 +31,7 @@ from aiohikvision.behaviours import (
 from aiohikvision.behaviours.rules import KNOWN_RULES, Match, Resolved, Rule, VersionRange, resolve
 from aiohikvision.errors import HikvisionError, MissingExtra
 from aiohikvision.models.capabilities import Capabilities, Domain, Support
+from aiohikvision.models.events import EventSource, EventState, Trigger
 from aiohikvision.models.firmware import Firmware
 from aiohikvision.models.identity import Identity
 from aiohikvision.models.streaming import AudioCodec, Stream, StreamId, StreamKind, VideoCodec, VideoFormat
@@ -50,10 +51,22 @@ if TYPE_CHECKING:
     from aiohikvision.isapi.model.features.inputs import Input, InputUse
     from aiohikvision.isapi.model.features.outputs import Output, OutputUse
     from aiohikvision.isapi.model.features.talk import TalkEnd, TalkError, TwoWayAudio
+    from aiohikvision.isapi.wire.faults import (
+        BadCredentials,
+        DeviceRejected,
+        Forbidden,
+        InsecureAuth,
+        LockedOut,
+        NotIsapi,
+        Unreachable,
+        Unsupported,
+    )
+    from aiohikvision.patterns.events import EventMonitor
     from aiohikvision.patterns.hikvision import Camera, Hikvision, Kind, Supports, connect
     from aiohikvision.rtp.door_sound import DoorSound, DoorSoundStats, Dropped
     from aiohikvision.rtp.packets import RtpPacket
     from aiohikvision.rtp.talkback import Packetizer, Talkback, TalkbackStats
+    from aiohikvision.services.events import Events
     from aiohikvision.services.streaming import Streaming
     from aiohikvision.sip.calls import CallError, CallServer, CallState, DoorCall, EndReason
     from aiohikvision.sip.registrar import DoorRegistrar, Registration
@@ -67,7 +80,22 @@ _LAZY: Final[dict[str, tuple[str, str]]] = {
     **dict.fromkeys(
         ("connect", "Hikvision", "Camera", "Kind", "Supports"), ("aiohikvision.patterns.hikvision", "isapi")
     ),
+    **dict.fromkeys(("EventMonitor",), ("aiohikvision.patterns.events", "isapi")),
     **dict.fromkeys(("Streaming",), ("aiohikvision.services.streaming", "isapi")),
+    **dict.fromkeys(("Events",), ("aiohikvision.services.events", "isapi")),
+    **dict.fromkeys(
+        (
+            "BadCredentials",
+            "DeviceRejected",
+            "Forbidden",
+            "InsecureAuth",
+            "LockedOut",
+            "NotIsapi",
+            "Unreachable",
+            "Unsupported",
+        ),
+        ("aiohikvision.isapi.wire.faults", "isapi"),
+    ),
     **dict.fromkeys(
         ("DoorStation", "DoorStationHealth", "DoorStationInfo", "NotADoorStation", "NotALock", "Setting"),
         ("aiohikvision.isapi.door_station", "isapi"),
@@ -111,6 +139,7 @@ __all__ = [
     "KNOWN_RULES",
     "AlertStream",
     "AudioCodec",
+    "BadCredentials",
     "BehaviourPatch",
     "Behaviours",
     "CallError",
@@ -120,6 +149,7 @@ __all__ = [
     "Camera",
     "Capabilities",
     "Device",
+    "DeviceRejected",
     "Domain",
     "DoorCall",
     "DoorRegistrar",
@@ -131,7 +161,12 @@ __all__ = [
     "DoorTransport",
     "Dropped",
     "EndReason",
+    "EventMonitor",
+    "EventSource",
+    "EventState",
+    "Events",
     "Firmware",
+    "Forbidden",
     "Hikvision",
     "HikvisionClient",
     "HikvisionError",
@@ -140,12 +175,15 @@ __all__ = [
     "ImageValue",
     "Input",
     "InputUse",
+    "InsecureAuth",
     "Kind",
+    "LockedOut",
     "Match",
     "Measured",
     "MissingExtra",
     "NotADoorStation",
     "NotALock",
+    "NotIsapi",
     "Output",
     "OutputUse",
     "PacketTime",
@@ -165,8 +203,11 @@ __all__ = [
     "TalkError",
     "Talkback",
     "TalkbackStats",
+    "Trigger",
     "TriggerSource",
     "TwoWayAudio",
+    "Unreachable",
+    "Unsupported",
     "VersionRange",
     "VideoCodec",
     "VideoFormat",
