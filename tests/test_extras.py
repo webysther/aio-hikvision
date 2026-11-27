@@ -51,7 +51,7 @@ def test_the_core_needs_no_dependency() -> None:
     [
         (["aiohttp"], "aiohikvision.HikvisionClient", "isapi"),
         (["aiohttp"], "aiohikvision.DoorStation", "isapi"),
-        (["defusedxml"], "aiohikvision.Device", "isapi"),
+        (["yarl"], "aiohikvision.Device", "isapi"),
         (["aiosipua"], "aiohikvision.CallServer", "sip"),
         (["aiohttp"], "__import__('aiohikvision.isapi')", "isapi"),
         (["aiohttp"], "__import__('aiohikvision.parsers')", "isapi"),
@@ -75,6 +75,20 @@ def test_a_part_without_its_extra_says_how_to_install_it(missing: list[str], cod
     )
     assert printed.startswith(f"{extra} | aiohikvision[{extra}] is needed")
     assert f'pip install "aiohikvision[{extra}]"' in printed
+
+
+def test_isapi_without_defusedxml() -> None:
+    """Without defusedxml the XML of the devices is read by the guarded parser: ISAPI works."""
+    printed = run_without(
+        ["defusedxml"],
+        """
+        import aiohikvision
+        from aiohikvision.isapi.wire.xmlview import parse
+
+        print(aiohikvision.Device.__name__, parse("<a><b>1</b></a>").text("b"))
+        """,
+    )
+    assert printed.split() == ["Device", "1"]
 
 
 def test_rtp_needs_no_extra_dependency() -> None:

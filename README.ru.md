@@ -37,27 +37,28 @@ pip install "aiohikvision[isapi]"
 
 ### 2. Знакомство с устройством
 
-`HikvisionClient(session).connect(...)` один раз и только GET-запросами считывает, что
+`aiohikvision.connect(...)` один раз и только GET-запросами считывает, что
 это за устройство, что оно умеет и как себя ведёт. На устройстве ничего не меняется.
 
 ```python
 import asyncio
 import os
+from pathlib import Path
 
-from aiohikvision import HikvisionClient
+import aiohikvision
 
 
 async def main() -> None:
-    async with HikvisionClient() as client:
-        device = await client.connect(
-            os.environ["DEVICE_HOST"],
-            os.environ["DEVICE_USERNAME"],
-            os.environ["DEVICE_PASSWORD"],
-            port=int(os.environ.get("DEVICE_PORT", "80")),
-        )
-        print(device.identity.model, device.identity.firmware)
-        print("Domains:", ", ".join(device.capabilities.domains))
-        print("Talk packets:", device.behaviours.talk_packet)
+    async with aiohikvision.connect(
+        os.environ["DEVICE_HOST"],
+        os.environ["DEVICE_USERNAME"],
+        os.environ["DEVICE_PASSWORD"],
+        port=int(os.environ.get("DEVICE_PORT", "80")),
+    ) as hik:
+        print(hik.name, "·", hik.model, hik.firmware, "·", hik.kind)
+        print(hik.supports)
+        print(hik.camera, await hik.camera.stream_url(credentials=False))
+        Path("picture.jpg").write_bytes(await hik.camera.snapshot())
 
 
 asyncio.run(main())
@@ -66,15 +67,15 @@ asyncio.run(main())
 На вызывной панели DS-KD8003 скрипт выводит:
 
 ```text
-DS-KD8003-IME1(B) V3.7.3 build 260915
-Domains: streaming, events, io, video_intercom, access_control, two_way_audio
-Talk packets: 40ms
+Door Station · DS-KD8003-IME1(B) V3.7.3 build 260915 · door_station
+Supports(snapshot=True, streaming=True, events=True, smart=False, ptz=False, two_way_audio=True, intercom=True, doors=True, holidays=False, inputs=4, outputs=2)
+<Camera 1: 101, 102> rtsp://192.0.2.10:554/Streaming/Channels/101
 ```
 
 Чтобы использовать `aiohttp`-сессию вашего приложения, передайте её в
-`HikvisionClient(session)`. `device.streaming` перечисляет потоки устройства
-(`await device.streaming.streams()`), делает снимок (`snapshot()`) и выдаёт RTSP-адрес
-каждого потока (`rtsp_url()`).
+`aiohikvision.connect(..., session=session)`. `hik.camera` перечисляет потоки устройства
+(`camera.streams`), делает снимок (`snapshot()`) и выдаёт RTSP-адрес
+каждого потока (`stream_url()`).
 
 ### 3. Создание отчёта
 
@@ -101,7 +102,7 @@ Report written to aiohikvision-report-DS-KD8003-IME1-B.json: read it, then attac
 
 Строки с `!` — это то, чего библиотеке не хватает для вашего устройства: значения,
 которые она не распознаёт, документы, которые не удалось получить, или отсутствие
-правила для вашей модели и прошивки. В вашем собственном коде `await device.report()`
+правила для вашей модели и прошивки. В вашем собственном коде `await hik.report()`
 возвращает тот же отчёт (`report.to_json()`).
 
 ### 4. Отправка

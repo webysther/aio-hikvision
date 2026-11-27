@@ -34,13 +34,25 @@ here; Home Assistant code belongs in the integration.
   identifiers of real devices as `REDACTED`. Recordings and videos never go
   in the repository folder (`captures/` is ignored and holds redacted text
   only).
+- **License: MIT, mixed.** The parts derived from Hikvision Bridge keep its
+  Apache License 2.0 (`LICENSES/Apache-2.0.txt`), and the License section of
+  the README, the only notice (there is no NOTICE file), lists them. New code
+  is MIT: write it from the facts (ISAPI, the RFCs, measured behaviour), not
+  from another project's code. Code adapted from an MIT or Apache-2.0
+  project keeps its license and joins that list; from a project without a
+  license, or from the Hikvision SDK, take facts only. A rewrite that keeps
+  none of a derived file's text takes it off the list.
 
 ## Layout
 
-From the simplest to the rawest:
+From the simplest to the rawest, in three levels like the constructs of the AWS CDK
+(each made only of the one below, more answer with less code and less flexibility):
 
 ```text
 src/aiohikvision/
+  patterns/      level 3: connect() → Hikvision (who it is, Supports, its cameras),
+                 Camera (a channel: snapshot(), stream_url()); the questions an
+                 integration asks, answered by attributes read once     [isapi]
   client.py      HikvisionClient(session, rules=, overrides=): connect() → Device  [isapi]
   device.py      Device: identity, capabilities and behaviours, read once; its services;
                  summary() (the debug record of how it was recognised)
@@ -66,7 +78,7 @@ src/aiohikvision/
                  DoorSound: the door's sound of a call, in order (pure);
                  packets.py RtpPacket
   media/         g711.py: reference µ-law and A-law encoders, tones, frames
-  isapi/         from Hikvision Bridge (see NOTICE): wire/ (the authenticated
+  isapi/         from Hikvision Bridge (Apache-2.0): wire/ (the authenticated
                  link, faults, the event feed, XML) and model/ (discovery and
                  features); door_station.py DoorStation, the ISAPI side of a
                  door station; model/features/talk.py TwoWayAudio
@@ -83,11 +95,21 @@ docs/            DEVICE_FINDINGS.md (what the door station does, measured),
 ```
 
 The public API is what `aiohikvision/__init__.py` exports in `__all__`, plus
-the documented subpackages. It is layered, from the simplest to the rawest:
-`HikvisionClient` → `Device` and the classes that answer the caller's real
-questions ("open the door", "answer this call") → `services` (one per domain of
-ISAPI) → `parsers` and `models` (pure) → `isapi.wire` (the link). Add
-higher-level methods rather than making callers combine low-level calls.
+the documented subpackages. It has three levels:
+
+- **Level 3** (`patterns`): what an integration asks, as pyHik and aiodpc answer it
+  (`hik.name`, `hik.supports.ptz`, `await hik.camera.snapshot()`). Attributes are
+  read once when the device connects; only verbs do I/O; a verb has sensible
+  defaults (the main stream, the account in the RTSP address) and few parameters.
+- **Level 2** (`Device`, `services`, `models`, `behaviours`): one domain of ISAPI
+  with types, defaults and the rules of each model and firmware.
+- **Level 1** (`isapi.wire`, `parsers`): one document at a time, in full.
+
+Rules: level 3 imports only level 2, never `isapi` nor `parsers`
+(`tests/isapi/test_patterns.py` checks it); level 2 never imports level 3; every
+level-3 object has `.device`, and every `Device` has `.link`, the way down. When a
+consumer has to combine level-2 calls to answer a question, the answer belongs
+in level 3.
 
 The 0.2 series moves the library onto this layout, a part at a time (see
 CHANGELOG): `DoorStation`, `isapi.model` (discovery and the features) and the
@@ -175,10 +197,14 @@ measured when it moved (77%), while the library's own code stays at 100%.
   its settings from environment variables (never an address in the text). Run each
   one before changing it, against the doubles of `tests/fakes` or, with the
   maintainer's approval, a real device.
+- The README is read by someone meeting the library for the first time: it starts with
+  the simplest thing (connect, ask what the device is), and each section builds on the
+  one before, level 3 first, down to the lower levels and the door stations. Say a
+  thing once, briefly; details go to `docs/`.
 - `README.<language>.md` (zh-CN, es, pt-BR, fr, ar, ru, de, it, chosen by where
-  Hikvision sells and where Home Assistant is used) translate the introduction and
-  "Your device, step by step", and link to the English README for the rest: change
-  them with it, section by section. The line of languages on top links them all.
+  Hikvision sells and where Home Assistant is used) are synced with the English README
+  only when the maintainer asks; until then they may lag behind it. The line of
+  languages on top links them all.
 - The debug log is lean: a record says something once (how a device was recognised,
   the streams when they change, a request when it starts failing and when it answers
   again); a request that works logs nothing. Keep it so: whoever sends a log should

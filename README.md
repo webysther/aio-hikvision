@@ -2,115 +2,120 @@
 
 **English** · [中文](https://github.com/webysther/aio-hikvision/blob/main/README.zh-CN.md) · [Español](https://github.com/webysther/aio-hikvision/blob/main/README.es.md) · [Português](https://github.com/webysther/aio-hikvision/blob/main/README.pt-BR.md) · [Français](https://github.com/webysther/aio-hikvision/blob/main/README.fr.md) · [العربية](https://github.com/webysther/aio-hikvision/blob/main/README.ar.md) · [Русский](https://github.com/webysther/aio-hikvision/blob/main/README.ru.md) · [Deutsch](https://github.com/webysther/aio-hikvision/blob/main/README.de.md) · [Italiano](https://github.com/webysther/aio-hikvision/blob/main/README.it.md)
 
-Asyncio library for Hikvision devices: cameras, recorders and door stations over
-ISAPI, and the SIP calls of video door stations. It is fully typed, has no Home
-Assistant dependency, and installs only the parts you use. It aims to be the one
-library the Hikvision projects of Home Assistant need; its first user is
-[Hikvision Virtual Indoor Station](https://github.com/webysther/ha-hikvision-virtual-indoor-station).
-
-Every device it has met works because someone sent its report. Yours can be next:
-the steps below take five minutes.
-
-## Your device, step by step
-
-### 1. Install
+Talk to Hikvision cameras, recorders and door stations from asyncio. Typed, without
+Home Assistant, and only the parts you install.
 
 ```sh
 pip install "aiohikvision[isapi]"
 ```
 
-Python 3.13 or newer. Each part of the library is an extra, and the default install
-has no dependency:
+Python 3.13 or newer.
 
-| Extra | Installs | For |
-|---|---|---|
-| (none) | nothing | the models, how devices differ (`behaviours`), the errors |
-| `isapi` | aiohttp, yarl, defusedxml | `HikvisionClient`, `Device`, `DoorStation`: the HTTP API of the devices |
-| `rtp` | nothing yet | RTP: the microphone to a door during a call |
-| `sip` | `[rtp]`, aiosipua | the SIP calls of door stations |
-| `scrambling` | `[isapi]`, cryptography | encrypted program streams of recordings |
-| `all` | everything | |
+## First steps
 
-A part used without its extra raises `MissingExtra`, which says what to install.
-
-### 2. Meet your device
-
-`HikvisionClient(session).connect(...)` reads, once and with GET only, who the
-device is, what it can do and how it behaves. Nothing on the device changes.
+Connect, and ask the device what it is:
 
 ```python
 import asyncio
 import os
 
-from aiohikvision import HikvisionClient
+import aiohikvision
 
 
 async def main() -> None:
-    async with HikvisionClient() as client:
-        device = await client.connect(
-            os.environ["DEVICE_HOST"],
-            os.environ["DEVICE_USERNAME"],
-            os.environ["DEVICE_PASSWORD"],
-            port=int(os.environ.get("DEVICE_PORT", "80")),
-        )
-        print(device.identity.model, device.identity.firmware)
-        print("Domains:", ", ".join(device.capabilities.domains))
-        print("Talk packets:", device.behaviours.talk_packet)
+    async with aiohikvision.connect(
+        os.environ["DEVICE_HOST"], os.environ["DEVICE_USERNAME"], os.environ["DEVICE_PASSWORD"]
+    ) as hik:
+        print(hik.name, "·", hik.model, hik.firmware)
 
 
 asyncio.run(main())
 ```
 
-On a DS-KD8003 door station it prints:
-
 ```text
-DS-KD8003-IME1(B) V3.7.3 build 260915
-Domains: streaming, events, io, video_intercom, access_control, two_way_audio
-Talk packets: 40ms
+Door Station · DS-KD8003-IME1(B) V3.7.3 build 260915
 ```
 
-Give it the `aiohttp` session of your application with `HikvisionClient(session)`.
-`device.streaming` lists its streams (`await device.streaming.streams()`), takes a
-picture (`snapshot()`) and gives the RTSP address of each (`rtsp_url()`).
+`connect` reads the device once, with GET only: nothing on it changes. Everything that
+follows starts from `hik`.
 
-### 3. Make its report
+## A picture and a stream
 
-The report is everything the library reads of the device and what it makes of it:
-its documents, **anonymized** (no account, address, serial, MAC or name you gave),
-the domains it shows and how the library covers each, the behaviours it uses and why,
-and what it did not recognise. From a terminal:
+Every camera of the device takes a picture and gives its RTSP address:
+
+```python
+import asyncio
+import os
+from pathlib import Path
+
+import aiohikvision
+
+
+async def main() -> None:
+    async with aiohikvision.connect(
+        os.environ["DEVICE_HOST"], os.environ["DEVICE_USERNAME"], os.environ["DEVICE_PASSWORD"]
+    ) as hik:
+        camera = hik.camera
+        Path("picture.jpg").write_bytes(await camera.snapshot())
+        print(await camera.stream_url(credentials=False))
+
+
+asyncio.run(main())
+```
+
+```text
+rtsp://192.0.2.10:554/Streaming/Channels/101
+```
+
+Both take the main stream; `camera.snapshot(StreamKind.SUB)` takes the sub stream, a
+smaller picture. A camera or a door station has one camera, `hik.camera`; a recorder
+has one per channel, `hik.cameras`.
+
+## What it supports
+
+`hik.kind` says what the device is, and `hik.supports` what it can do:
+
+```python
+import asyncio
+import os
+
+import aiohikvision
+
+
+async def main() -> None:
+    async with aiohikvision.connect(
+        os.environ["DEVICE_HOST"], os.environ["DEVICE_USERNAME"], os.environ["DEVICE_PASSWORD"]
+    ) as hik:
+        print(hik.kind, hik.supports)
+        for camera in hik.cameras:
+            print(camera)
+
+
+asyncio.run(main())
+```
+
+```text
+door_station Supports(snapshot=True, streaming=True, events=True, smart=False, ptz=False, two_way_audio=True, intercom=True, doors=True, holidays=False, inputs=4, outputs=2)
+<Camera 1: 101, 102>
+```
+
+`None` in `Supports` means the device did not say.
+
+## When something does not work
+
+Make the report of your device, and send it to us:
 
 ```sh
-export AIOHIKVISION_PASSWORD='the password'   # or leave it out to be asked
 python -m aiohikvision report 192.0.2.10 --username admin
 ```
 
-```text
-DS-KD8003-IME1(B) V3.7.3 build 260915 (VIS)
-Domains: streaming (service), events (door_station), io (door_station), video_intercom (door_station), access_control (door_station), two_way_audio (door_station)
-  talk_packet: 40ms (rule)
-  alert_stream: multipart (default)
-  call_status: advertised (default)
-  triggers: event_triggers (default)
-Report written to aiohikvision-report-DS-KD8003-IME1-B.json: read it, then attach it to https://github.com/webysther/aio-hikvision/issues/new?template=device_report.yml
-```
+It asks for the password, prints what the library makes of the device, and writes a
+file. The file holds the device's answers, **anonymized** (no account, address, serial
+or names), and the lines marked `!` are what the library is missing for it. Read it,
+then [open a device report](https://github.com/webysther/aio-hikvision/issues/new?template=device_report.yml)
+and attach it: it becomes a test, and support for your model.
 
-The lines with `!` are what the library is missing for your device: values it does
-not recognise, documents that failed, or no rule for your model and firmware. In
-your own code, `await device.report()` returns the same report (`report.to_json()`).
-
-### 4. Send it
-
-Read the file first: it should hold nothing of your home, and you can remove anything
-you would rather not share. Then
-[open a device report](https://github.com/webysther/aio-hikvision/issues/new?template=device_report.yml),
-attach it, and say what works and what does not. A report becomes a fixture of the
-tests, a rule for your model and firmware, and the services your device needs: the
-library improves the same way for every device.
-
-### 5. When something goes wrong
-
-The debug log of the library is short and says what matters, once:
+For the debug log, turn on the `aiohikvision` logger:
 
 ```python
 import logging
@@ -119,31 +124,58 @@ logging.basicConfig()
 logging.getLogger("aiohikvision").setLevel(logging.DEBUG)
 ```
 
-- how the device was recognised: its model and firmware, the domains it shows and
-  how each is covered, the behaviours that are not the defaults and the rule that
-  set them;
-- its streams, when they are first read and when they change;
-- each request that fails, the first time, and when it answers again; no line for
-  the requests that work.
+It says once how the device was recognised, its streams, and each request that fails,
+and nothing for the requests that work.
 
-Attach that log to the issue with the report. In Home Assistant, turn on **Enable
-debug logging** of the integration: the library's log comes with it.
+## Going further
 
-## How devices differ
+### Three levels
 
-Devices differ by model, and by firmware of the same model: a DS-KD8003 plays the
-sound of a call slowly unless each RTP packet carries 40 ms. Each such difference is a
-behaviour (`device.behaviours`), set from the model and the firmware by rules
-(`KNOWN_RULES`, each saying where it was seen), the most specific winning. A device the
-library does not know yet takes your rules, or overrides that win over every rule:
+The library is built in three levels, like the constructs of the
+[AWS CDK](https://docs.aws.amazon.com/cdk/v2/guide/constructs.html). Each level is made of
+the one below, answers more with less code, and is less flexible; when one is not
+enough, go down:
+
+| Level | What | Way down |
+|---|---|---|
+| 3 | `aiohikvision.connect()` → `Hikvision`, `Camera`, `Supports`: the questions an integration asks | `hik.device` |
+| 2 | `Device`: identity, capabilities, the rules of each model and firmware, one service per domain (`device.streaming`) | `device.link` |
+| 1 | `IsapiLink` and the parsers: one ISAPI document at a time, in full | |
 
 ```python
 import asyncio
 import os
 
-from aiohikvision import BehaviourPatch, HikvisionClient, Match, PacketTime, Rule, VersionRange
+import aiohikvision
+from aiohikvision import Domain
 
-# A door station measured to need 40 ms packets on its 2.2 firmware
+
+async def main() -> None:
+    async with aiohikvision.connect(
+        os.environ["DEVICE_HOST"], os.environ["DEVICE_USERNAME"], os.environ["DEVICE_PASSWORD"]
+    ) as hik:
+        print(hik.supports.ptz)  # level 3: the answer
+        print(hik.device.capabilities.support(Domain.PTZ))  # level 2: present, absent or unknown
+        print(await hik.device.link.read_text("/ISAPI/System/time"))  # level 1: the document
+
+
+asyncio.run(main())
+```
+
+### How devices differ
+
+Devices differ by model, and by firmware of the same model: a DS-KD8003 plays the sound
+of a call slowly unless each RTP packet carries 40 ms. Each difference is a behaviour,
+set by rules of model and firmware (`KNOWN_RULES`, each with where it was seen). For a
+device the library does not know yet, give your own rules:
+
+```python
+import asyncio
+import os
+
+import aiohikvision
+from aiohikvision import BehaviourPatch, Match, PacketTime, Rule, VersionRange
+
 RULES = [
     Rule(
         Match(model="DS-KD9403*", firmware=VersionRange.parse(">=2.2,<2.3")),
@@ -153,28 +185,28 @@ RULES = [
 
 
 async def main() -> None:
-    async with HikvisionClient(rules=RULES) as client:
-        device = await client.connect(
-            os.environ["DEVICE_HOST"],
-            os.environ["DEVICE_USERNAME"],
-            os.environ["DEVICE_PASSWORD"],
-            port=int(os.environ.get("DEVICE_PORT", "80")),
-        )
-        decision = device.resolved.decisions["talk_packet"]
-        print(device.behaviours.talk_packet, "decided by", decision.source)
+    async with aiohikvision.connect(
+        os.environ["DEVICE_HOST"], os.environ["DEVICE_USERNAME"], os.environ["DEVICE_PASSWORD"], rules=RULES
+    ) as hik:
+        decision = hik.device.resolved.decisions["talk_packet"]
+        print(hik.device.behaviours.talk_packet, "decided by", decision.source)
 
 
 asyncio.run(main())
 ```
 
-On a DS-KD8003 it prints `40ms decided by rule`. `device.resolved.decisions` says what
-decided each behaviour: the default, a rule (`decision.rule`, with where it was seen),
-or your override (`HikvisionClient(overrides=BehaviourPatch(...))`).
+```text
+40ms decided by rule
+```
 
-## A door station, over ISAPI
+`overrides=BehaviourPatch(...)` wins over every rule.
 
-`DoorStation` is what a door station does for its indoor station, on one
-authenticated link: what it is, its doors, its picture, and its speaker.
+## Door stations
+
+### Doors and speaker
+
+`DoorStation` opens the doors of a door station, reads what it has, and plays sound
+through its speaker outside a call:
 
 ```python
 import asyncio
@@ -188,14 +220,9 @@ from aiohikvision import DoorStation
 async def main() -> None:
     async with aiohttp.ClientSession() as session:
         door = DoorStation(
-            session,
-            os.environ["DOOR_HOST"],
-            os.environ["DOOR_USERNAME"],
-            os.environ["DOOR_PASSWORD"],
-            port=int(os.environ.get("DOOR_PORT", "80")),
+            session, os.environ["DEVICE_HOST"], os.environ["DEVICE_USERNAME"], os.environ["DEVICE_PASSWORD"]
         )
         info = await door.read_info()
-        print(info.identity.model, info.identity.firmware)
         print("Doors:", info.doors, "Speaker:", info.talk)
         # await door.open_door(1)  # opens the lock of door 1
 
@@ -203,19 +230,11 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-It also checks that the device answers (`check()`), and plays G.711 through the
-speaker outside a call (`talk()`, a `TwoWayAudio`: one talk at a time, a new one
-takes the speaker over). Its picture and streams are those of any device:
-`(await Device.from_link(door.link)).streaming`, on the same link.
+### Its calls, over SIP
 
-## Its calls, over SIP
-
-The door station calls over SIP; its picture and sound are read over RTSP. The
-library is the SIP server of the door's VoIP line and the callee of its calls
-([why](https://github.com/webysther/aio-hikvision/blob/main/docs/ADR-0001-hybrid-call.md)).
-It can also hand on the door's sound of an answered call, for players that cannot
-play the sound of the RTSP stream
-([why](https://github.com/webysther/aio-hikvision/blob/main/docs/ADR-0002-door-sound-over-sip.md)):
+A door station calls over SIP (`pip install "aiohikvision[sip]"`): the library is the
+server of its VoIP line and answers, refuses or hangs up its calls
+([why SIP](https://github.com/webysther/aio-hikvision/blob/main/docs/ADR-0001-hybrid-call.md)):
 
 ```python
 import asyncio
@@ -226,8 +245,7 @@ from aiohikvision import CallServer, CallState, DoorCall, DoorRegistrar, DoorTra
 
 async def main() -> None:
     door_ip = os.environ["DOOR_IP"]  # the address its SIP packets come from
-    port = int(os.environ.get("SIP_PORT", "5060"))
-    transport = DoorTransport(local_addr=("0.0.0.0", port), allowed_hosts={door_ip})
+    transport = DoorTransport(local_addr=("0.0.0.0", 5060), allowed_hosts={door_ip})
     tasks: set[asyncio.Task[object]] = set()
 
     def changed(call: DoorCall) -> None:
@@ -246,7 +264,7 @@ async def main() -> None:
     )
     await calls.start()
     try:
-        await asyncio.sleep(float(os.environ.get("SECONDS", "600")))
+        await asyncio.sleep(600)
     finally:
         await calls.stop()
 
@@ -254,43 +272,44 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-- **`DoorTransport`:** UDP SIP that only hears the configured door stations, and
-  drops their `jaK` keepalives quietly (`on_keepalive` tells they are alive).
-- **`DoorRegistrar`:** accepts the REGISTER of the door's VoIP line, grants a
-  shorter registration than it asks, and says when it registers and expires.
-- **`CallServer` / `DoorCall`:** a call rings with 180 at once, then is answered,
-  refused or hung up on command; every command names its call. Two answers at once
-  give the call to the first. The answer is G.711 at `a=ptime:40`, `a=sendonly`,
-  `m=video 0`.
-- **`on_audio`:** given to `CallServer`, the answer becomes `a=sendrecv`, and it is
-  called with each 40 ms G.711 payload of the door, in order, in the law of
-  `call.talkback.codec`. `DoorSound` drops what is not the door's (another address,
-  a key press, a late packet) and counts it in `call.sound.stats`.
-- **`Talkback`:** the microphone to the door during a call: `call.push(frame)` takes
-  20 ms G.711 frames, and they leave as 40 ms RTP packets on an absolute clock, in
-  bursts. The door slows its own audio when it receives 20 ms packets.
-- **`aiohikvision.media.g711`:** reference µ-law and A-law encoders, identical to
-  audioop on every sample, tones and 20 ms frames.
+During an answered call, `call.push(frame)` sends your microphone to the door (G.711,
+in the 40 ms packets it needs), and `CallServer(on_audio=...)` hands on the door's
+sound ([why](https://github.com/webysther/aio-hikvision/blob/main/docs/ADR-0002-door-sound-over-sip.md)).
+`scripts/door_server.py` runs the library as the server of a real door station, from
+a terminal. What the door station does, measured, is in
+[docs/DEVICE_FINDINGS.md](https://github.com/webysther/aio-hikvision/blob/main/docs/DEVICE_FINDINGS.md):
+point its VoIP line at your server, and set its SIP audio to G.711 only.
 
-### From a terminal
+## What it covers, and migrating to it
 
-`scripts/door_server.py` runs the library as the server of a real door station,
-with port 5060 free and the door's VoIP line pointing at this machine:
+| Part | Today |
+|---|---|
+| Who a device is, what it supports, its cameras, pictures and streams | Available |
+| Rules of model and firmware, the device report, the debug log | Available |
+| Door stations: doors, inputs and outputs, settings, speaker, calls over SIP | Available |
+| The alert stream of events | Available; event states planned |
+| Recorders' proxied channels, live video in the browser, PTZ, smart detections | Planned |
 
-```sh
-# Ring until the door gives up: the visitor hears the ringback
-uv run python scripts/door_server.py --advertise <ha-ip> --door <door-ip> facade
-# Answer after 5 s, talk in 1 kHz bursts (2 s on, 2 s off), hang up after 30 s
-uv run python scripts/door_server.py --advertise <ha-ip> --door <door-ip> hybrid --answer-after 5
-```
+aiohikvision aims to be the one library the Hikvision projects of Home Assistant need.
+These guides map what each one uses to aiohikvision, with the code before and after:
 
-## What the door station does
+- [from pyHik](https://github.com/webysther/aio-hikvision/blob/main/docs/migration/from-pyhik.md), the `hikvision` integration of Home Assistant core;
+- [from the ISAPI client of hikvision_next](https://github.com/webysther/aio-hikvision/blob/main/docs/migration/from-hikvision-next.md);
+- [from aiohikvision 0.1](https://github.com/webysther/aio-hikvision/blob/main/docs/migration/hikvision-bridge.md), Hikvision Bridge;
+- [for the intercom projects](https://github.com/webysther/aio-hikvision/blob/main/docs/migration/intercom-projects.md) of Home Assistant.
 
-Measured on a DS-KD8003-IME1(B) with firmware V3.7.1 and V3.7.3:
-[docs/DEVICE_FINDINGS.md](https://github.com/webysther/aio-hikvision/blob/main/docs/DEVICE_FINDINGS.md).
-In short: point its VoIP line at your server, set its SIP audio to G.711 only
-(its Opus is non-standard), and expect it to cancel after its ring time (60 s)
-and hang up at its talk time (90 s by default).
+## Extras
+
+Each part is an extra; the default install has no dependency, and a part used without
+its extra raises `MissingExtra`, which says what to install.
+
+| Extra | Installs | For |
+|---|---|---|
+| `isapi` | aiohttp, yarl, defusedxml | the devices over ISAPI: everything above but the calls |
+| `sip` | aiosipua | the calls of door stations |
+| `rtp` | nothing yet | RTP, which `sip` uses |
+| `scrambling` | cryptography | encrypted program streams of recordings |
+| `all` | everything | |
 
 ## Development
 
@@ -302,13 +321,16 @@ uv run ruff check . && uv run ruff format --check .
 ```
 
 The tests never reach a device: they run against doubles of the measured ones
-(`tests/fakes`), with anonymized answers. `scripts/sip_probe.py` is the measuring
-tool of the findings; its captures stay out of the repository.
+(`tests/fakes`), with anonymized answers.
 
 ## License
 
-Apache License 2.0. The ISAPI subpackage comes from
-[Hikvision Bridge](https://github.com/yannik2480/hikvision_bridge), by yannik2480,
-under the same license: see
-[NOTICE](https://github.com/webysther/aio-hikvision/blob/main/NOTICE). Hikvision is
-a trademark of its owner; this project is not affiliated with it.
+MIT, except the parts derived from
+[Hikvision Bridge](https://github.com/yannik2480/hikvision_bridge), by yannik2480 and its
+contributors, which keep its
+[Apache License 2.0](https://github.com/webysther/aio-hikvision/blob/main/LICENSES/Apache-2.0.txt)
+and were changed for this library: the ISAPI layer (`aiohikvision.isapi.wire`,
+`aiohikvision.isapi.model`), the digest authentication (`aiohikvision.auth.digest`), and,
+in the tests, the fake ISAPI device with its answers (`tests/fakes`) and the tests of
+`aiohikvision.isapi`. Hikvision is a trademark of its owner; this project is not
+affiliated with it.

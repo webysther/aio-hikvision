@@ -13,13 +13,16 @@ from typing import Final
 from aiohikvision.errors import MissingExtra
 
 EXTRAS: Final[dict[str, tuple[str, ...]]] = {
-    "isapi": ("aiohttp", "yarl", "defusedxml"),
+    # defusedxml comes with [isapi] too, but is not required: without it the XML of the devices
+    # is read by a guarded parser that refuses DTDs (isapi.wire.xmlview). Home Assistant does
+    # not ship it, and checks only the version of a requirement, not its extras.
+    "isapi": ("aiohttp", "yarl"),
     "rtp": (),
     "rtsp": (),
     "sip": ("aiosipua",),
     "scrambling": ("cryptography",),
 }
-"""The modules each extra installs, as in pyproject.toml (``[rtp]`` and ``[rtsp]`` need none)."""
+"""The modules each part needs to import (``[rtp]`` and ``[rtsp]`` need none)."""
 
 
 def require(extra: str) -> None:

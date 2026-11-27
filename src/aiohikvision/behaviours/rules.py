@@ -311,5 +311,26 @@ KNOWN_RULES: Final[tuple[Rule, ...]] = (
             "pyHik reports: /ISAPI/Event/triggers answers 5xx without storage",
         ),
     ),
+    Rule(
+        Match(model="DS-KB8113-IME1(B)", firmware=VersionRange.parse("==2.2.60")),
+        BehaviourPatch(alert_stream=AlertStream.NONE),
+        Measured(
+            "DS-KB8113-IME1(B)",
+            "V2.2.60",
+            dt.date(2026, 11, 27),
+            "hikvision-intercom-hass-integration (MIT), docs/protocol.md: the alert stream sends "
+            "40 bytes, then closes",
+        ),
+    ),
+    Rule(
+        Match(model="DS-KV6113-WPE1(B)", firmware=VersionRange.parse("==2.2.53")),
+        BehaviourPatch(alert_stream=AlertStream.NONE),
+        Measured(
+            "DS-KV6113-WPE1(B)",
+            "V2.2.53",
+            dt.date(2026, 11, 27),
+            "intercom-homekit (MIT), DOCS.md: the alert stream answers an empty document",
+        ),
+    ),
 )
 """The behaviours seen on real devices (see :class:`~aiohikvision.behaviours.Measured`)."""

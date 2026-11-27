@@ -29,26 +29,27 @@ pip install "aiohikvision[isapi]"
 
 ### 2. 认识你的设备
 
-`HikvisionClient(session).connect(...)` 只读取一次，而且只用 GET 请求，了解设备是谁、能做什么、行为如何。设备上的任何东西都不会被改动。
+`aiohikvision.connect(...)` 只读取一次，而且只用 GET 请求，了解设备是谁、能做什么、行为如何。设备上的任何东西都不会被改动。
 
 ```python
 import asyncio
 import os
+from pathlib import Path
 
-from aiohikvision import HikvisionClient
+import aiohikvision
 
 
 async def main() -> None:
-    async with HikvisionClient() as client:
-        device = await client.connect(
-            os.environ["DEVICE_HOST"],
-            os.environ["DEVICE_USERNAME"],
-            os.environ["DEVICE_PASSWORD"],
-            port=int(os.environ.get("DEVICE_PORT", "80")),
-        )
-        print(device.identity.model, device.identity.firmware)
-        print("Domains:", ", ".join(device.capabilities.domains))
-        print("Talk packets:", device.behaviours.talk_packet)
+    async with aiohikvision.connect(
+        os.environ["DEVICE_HOST"],
+        os.environ["DEVICE_USERNAME"],
+        os.environ["DEVICE_PASSWORD"],
+        port=int(os.environ.get("DEVICE_PORT", "80")),
+    ) as hik:
+        print(hik.name, "·", hik.model, hik.firmware, "·", hik.kind)
+        print(hik.supports)
+        print(hik.camera, await hik.camera.stream_url(credentials=False))
+        Path("picture.jpg").write_bytes(await hik.camera.snapshot())
 
 
 asyncio.run(main())
@@ -57,12 +58,12 @@ asyncio.run(main())
 在一台 DS-KD8003 门口机上，它会输出：
 
 ```text
-DS-KD8003-IME1(B) V3.7.3 build 260915
-Domains: streaming, events, io, video_intercom, access_control, two_way_audio
-Talk packets: 40ms
+Door Station · DS-KD8003-IME1(B) V3.7.3 build 260915 · door_station
+Supports(snapshot=True, streaming=True, events=True, smart=False, ptz=False, two_way_audio=True, intercom=True, doors=True, holidays=False, inputs=4, outputs=2)
+<Camera 1: 101, 102> rtsp://192.0.2.10:554/Streaming/Channels/101
 ```
 
-用 `HikvisionClient(session)` 把你应用的 `aiohttp` 会话交给它。`device.streaming` 会列出设备的码流（`await device.streaming.streams()`），抓拍一张图片（`snapshot()`），并给出每路码流的 RTSP 地址（`rtsp_url()`）。
+用 `aiohikvision.connect(..., session=session)` 把你应用的 `aiohttp` 会话交给它。`hik.camera` 会列出设备的码流（`camera.streams`），抓拍一张图片（`snapshot()`），并给出每路码流的 RTSP 地址（`stream_url()`）。
 
 ### 3. 生成设备报告
 
@@ -83,7 +84,7 @@ Domains: streaming (service), events (door_station), io (door_station), video_in
 Report written to aiohikvision-report-DS-KD8003-IME1-B.json: read it, then attach it to https://github.com/webysther/aio-hikvision/issues/new?template=device_report.yml
 ```
 
-带 `!` 的行就是库对你的设备还缺少的东西：无法识别的值、读取失败的文档，或者还没有适用于你的型号和固件的规则。在你自己的代码中，`await device.report()` 会返回同样的报告（`report.to_json()`）。
+带 `!` 的行就是库对你的设备还缺少的东西：无法识别的值、读取失败的文档，或者还没有适用于你的型号和固件的规则。在你自己的代码中，`await hik.report()` 会返回同样的报告（`report.to_json()`）。
 
 ### 4. 发送报告
 

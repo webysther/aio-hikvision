@@ -45,13 +45,12 @@ async def run_report(
 ) -> int:
     """Read a device, print what the library makes of it, and write its report."""
     require("isapi")
-    from aiohikvision.client import HikvisionClient  # noqa: PLC0415  # needs aiohikvision[isapi]
     from aiohikvision.errors import HikvisionError  # noqa: PLC0415
+    from aiohikvision.patterns.hikvision import connect  # noqa: PLC0415  # needs aiohikvision[isapi]
 
     try:
-        async with HikvisionClient() as client:
-            device = await client.connect(host, username, password, port=port, https=https)
-            report = await device.report()
+        async with connect(host, username, password, port=port, https=https) as hik:
+            report = await hik.report()
     except HikvisionError as err:
         print(f"The device could not be read: {type(err).__name__} {err}", file=sys.stderr)
         return 1

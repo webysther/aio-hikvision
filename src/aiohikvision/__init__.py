@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from aiohikvision.isapi.model.features.inputs import Input, InputUse
     from aiohikvision.isapi.model.features.outputs import Output, OutputUse
     from aiohikvision.isapi.model.features.talk import TalkEnd, TalkError, TwoWayAudio
+    from aiohikvision.patterns.hikvision import Camera, Hikvision, Kind, Supports, connect
     from aiohikvision.rtp.door_sound import DoorSound, DoorSoundStats, Dropped
     from aiohikvision.rtp.packets import RtpPacket
     from aiohikvision.rtp.talkback import Packetizer, Talkback, TalkbackStats
@@ -63,6 +64,9 @@ __version__ = "0.2.0"
 _LAZY: Final[dict[str, tuple[str, str]]] = {
     **dict.fromkeys(("HikvisionClient",), ("aiohikvision.client", "isapi")),
     **dict.fromkeys(("Device",), ("aiohikvision.device", "isapi")),
+    **dict.fromkeys(
+        ("connect", "Hikvision", "Camera", "Kind", "Supports"), ("aiohikvision.patterns.hikvision", "isapi")
+    ),
     **dict.fromkeys(("Streaming",), ("aiohikvision.services.streaming", "isapi")),
     **dict.fromkeys(
         ("DoorStation", "DoorStationHealth", "DoorStationInfo", "NotADoorStation", "NotALock", "Setting"),
@@ -113,6 +117,7 @@ __all__ = [
     "CallServer",
     "CallState",
     "CallStatusRead",
+    "Camera",
     "Capabilities",
     "Device",
     "Domain",
@@ -127,6 +132,7 @@ __all__ = [
     "Dropped",
     "EndReason",
     "Firmware",
+    "Hikvision",
     "HikvisionClient",
     "HikvisionError",
     "Identity",
@@ -134,6 +140,7 @@ __all__ = [
     "ImageValue",
     "Input",
     "InputUse",
+    "Kind",
     "Match",
     "Measured",
     "MissingExtra",
@@ -153,6 +160,7 @@ __all__ = [
     "StreamKind",
     "Streaming",
     "Support",
+    "Supports",
     "TalkEnd",
     "TalkError",
     "Talkback",
@@ -163,6 +171,7 @@ __all__ = [
     "VideoCodec",
     "VideoFormat",
     "__version__",
+    "connect",
     "is_keepalive",
     "resolve",
 ]

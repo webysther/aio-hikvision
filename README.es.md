@@ -35,27 +35,28 @@ Una parte usada sin su extra lanza `MissingExtra`, que indica qué instalar.
 
 ### 2. Conoce tu dispositivo
 
-`HikvisionClient(session).connect(...)` lee, una sola vez y solo con GET, quién es el
+`aiohikvision.connect(...)` lee, una sola vez y solo con GET, quién es el
 dispositivo, qué puede hacer y cómo se comporta. Nada cambia en el dispositivo.
 
 ```python
 import asyncio
 import os
+from pathlib import Path
 
-from aiohikvision import HikvisionClient
+import aiohikvision
 
 
 async def main() -> None:
-    async with HikvisionClient() as client:
-        device = await client.connect(
-            os.environ["DEVICE_HOST"],
-            os.environ["DEVICE_USERNAME"],
-            os.environ["DEVICE_PASSWORD"],
-            port=int(os.environ.get("DEVICE_PORT", "80")),
-        )
-        print(device.identity.model, device.identity.firmware)
-        print("Domains:", ", ".join(device.capabilities.domains))
-        print("Talk packets:", device.behaviours.talk_packet)
+    async with aiohikvision.connect(
+        os.environ["DEVICE_HOST"],
+        os.environ["DEVICE_USERNAME"],
+        os.environ["DEVICE_PASSWORD"],
+        port=int(os.environ.get("DEVICE_PORT", "80")),
+    ) as hik:
+        print(hik.name, "·", hik.model, hik.firmware, "·", hik.kind)
+        print(hik.supports)
+        print(hik.camera, await hik.camera.stream_url(credentials=False))
+        Path("picture.jpg").write_bytes(await hik.camera.snapshot())
 
 
 asyncio.run(main())
@@ -64,14 +65,14 @@ asyncio.run(main())
 En un videoportero DS-KD8003 imprime:
 
 ```text
-DS-KD8003-IME1(B) V3.7.3 build 260915
-Domains: streaming, events, io, video_intercom, access_control, two_way_audio
-Talk packets: 40ms
+Door Station · DS-KD8003-IME1(B) V3.7.3 build 260915 · door_station
+Supports(snapshot=True, streaming=True, events=True, smart=False, ptz=False, two_way_audio=True, intercom=True, doors=True, holidays=False, inputs=4, outputs=2)
+<Camera 1: 101, 102> rtsp://192.0.2.10:554/Streaming/Channels/101
 ```
 
-Pásale la sesión `aiohttp` de tu aplicación con `HikvisionClient(session)`.
-`device.streaming` lista sus flujos (`await device.streaming.streams()`), captura una
-imagen (`snapshot()`) y da la dirección RTSP de cada uno (`rtsp_url()`).
+Pásale la sesión `aiohttp` de tu aplicación con `aiohikvision.connect(..., session=session)`.
+`hik.camera` lista sus flujos (`camera.streams`), captura una
+imagen (`snapshot()`) y da la dirección RTSP de cada uno (`stream_url()`).
 
 ### 3. Genera su informe
 
@@ -97,7 +98,7 @@ Report written to aiohikvision-report-DS-KD8003-IME1-B.json: read it, then attac
 
 Las líneas con `!` son lo que le falta a la biblioteca para tu dispositivo: valores que
 no reconoce, documentos que fallaron o la falta de una regla para tu modelo y firmware.
-En tu propio código, `await device.report()` devuelve el mismo informe
+En tu propio código, `await hik.report()` devuelve el mismo informe
 (`report.to_json()`).
 
 ### 4. Envíalo

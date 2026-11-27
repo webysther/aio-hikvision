@@ -8,6 +8,7 @@ from aiohikvision import AlertStream, CallStatusRead, Domain, PacketTime, Suppor
 from aiohikvision.behaviours.rules import Source
 from aiohikvision.models._coded import CodedEnum, coded
 from aiohikvision.models.streaming import AudioCodec, StreamKind, VideoCodec
+from aiohikvision.patterns.hikvision import Kind
 
 RELEASED = {
     Support: {"PRESENT": 1, "ABSENT": 2, "UNKNOWN": 3},
@@ -28,6 +29,7 @@ RELEASED = {
     TriggerSource: {"EVENT_TRIGGERS": 1, "TRIGGERS_CAP": 2},
     Source: {"DEFAULT": 1, "RULE": 2, "OVERRIDE": 3},
     StreamKind: {"MAIN": 1, "SUB": 2, "THIRD": 3, "OTHER": 4},
+    Kind: {"CAMERA": 1, "RECORDER": 2, "DOOR_STATION": 3, "OTHER": 4},
     VideoCodec: {"H264": 1, "H265": 2, "MJPEG": 3, "OTHER": 4},
     AudioCodec: {
         "G711_ULAW": 1,

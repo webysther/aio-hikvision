@@ -12,6 +12,13 @@ The parts it replaces leave as their replacement comes, without shims.
 
 ### Added
 
+- **Three levels, like the constructs of the AWS CDK.** Level 3 answers what an integration
+  asks, in a few lines: `async with aiohikvision.connect(host, user, password) as hik`
+  gives `hik.name`, `hik.model`, `hik.firmware`, `hik.kind` (camera, recorder, door
+  station), `hik.supports` (`Supports`: snapshot, PTZ, two-way audio, intercom, doors,
+  inputs, outputs…) and its cameras (`hik.camera`, `hik.cameras`, one per channel on a
+  recorder), each with `snapshot()` and `stream_url()` on the main stream unless told
+  another. `hik.device` is level 2, `hik.device.link` level 1.
 - **`HikvisionClient` and `Device`**: `await HikvisionClient(session).connect(host, user,
   password)` reads, once, who a device is (`device.identity`), what it can do
   (`device.capabilities`) and how it behaves (`device.behaviours`).
@@ -42,6 +49,16 @@ The parts it replaces leave as their replacement comes, without shims.
   domains and their coverage, the behaviours set by a rule and where it was seen) in one
   record when it connects; its streams when first read and when they change; each
   request that fails, once, and again when it answers. Requests that work log nothing.
+- Rules for the alert stream of two more door stations that answer it with a short
+  document and close it: DS-KB8113-IME1(B) V2.2.60 and DS-KV6113-WPE1(B) V2.2.53, as
+  reported by other intercom projects.
+- **Guides to migrate** to aiohikvision (`docs/migration/`): from pyHik (the `hikvision`
+  integration of Home Assistant core), from the ISAPI client of hikvision_next, from
+  aiohikvision 0.1 (Hikvision Bridge), and for the intercom projects of Home Assistant,
+  each with what is available, partial or planned and the code before and after. The
+  README says what the library covers and links them.
+- The README in Chinese, Spanish, Portuguese, French, Arabic, Russian, German and Italian
+  (the introduction and the steps to meet a device and send its report).
 - `Firmware`: the version and build of a device as numbers (`firmware.parts`,
   `firmware.build`); `str(firmware)` is what the device wrote.
 - `Identity.device_id`: the `deviceID` the device reports, as it is.
@@ -50,6 +67,10 @@ The parts it replaces leave as their replacement comes, without shims.
 
 ### Changed
 
+- **License: MIT** (it was Apache-2.0). The parts derived from Hikvision Bridge (the ISAPI
+  layer, the digest authentication, the fake ISAPI device of the tests) keep its Apache
+  License 2.0, in `LICENSES/Apache-2.0.txt`; the License section of the README says which,
+  and replaces the NOTICE file. Releases 0.1.x stay Apache-2.0.
 - **Each part is an extra; the default install has no dependency.** Install
   `aiohikvision[isapi]` for the HTTP API, `[sip]` for the calls of door stations, `[rtp]`,
   `[scrambling]`, or `[all]`. A part used without its extra raises `MissingExtra`, saying
@@ -61,6 +82,8 @@ The parts it replaces leave as their replacement comes, without shims.
 - The digest authentication moved to `aiohikvision.auth.digest` (from
   `isapi.wire.signer`), to be shared with RTSP.
 - A device answering 501 without saying more is `Unsupported`.
+- defusedxml, installed with `[isapi]`, is no longer required: without it a guarded parser
+  reads the XML of the devices (Home Assistant does not ship it).
 
 ### Removed
 
